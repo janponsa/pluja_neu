@@ -15,8 +15,8 @@ const range_element = document.getElementById('range-slider');
 // Variables d'animació
 let isPlaying = false;
 let animationInterval = null;
-const animationSpeed = 100;
-const pauseOnLastFrame = 1000;
+const animationSpeed = 130;
+const pauseOnLastFrame = 1200;
 
 // Variables GIF
 let gif = null;
@@ -118,7 +118,6 @@ const map = L.map('map', {
   layers: [plujaneu_layer]
 }).setView([42.5, 1.5], 8);
 
-// Capes base
 const baseLayers = {
   "OpenStreetMap": L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
@@ -131,8 +130,51 @@ const baseLayers = {
   }),
   "Fosc": L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
     attribution: '© <a href="https://carto.com/">CARTO</a>'
+  }),
+  // Capa Meteocat
+"Meteocat": L.tileLayer('https://static-m.meteo.cat/tiles/fons/GoogleMapsCompatible/0{z}/000/000/{x}/000/000/{y}.png', {
+  attribution: '© <a href="https://carto.com/">CARTO</a>',
+  tms: true, // TMS activat
+  getTileUrl: function(coords) {
+    // Format del zoom: si el nivell és inferior a 10, afegeix un 0 al davant.
+    let z = (coords.z < 10 ? '0' : '') + coords.z;
+    
+    // Format de x: 3 dígits (afegeix zeros a l'esquerra si cal)
+    const x = String(coords.x).padStart(3, '0');
+    
+    // Ja que TMS està activat, Leaflet s'encarrega de la inversió,
+    // així que simplement fem el formatat de y amb 3 dígits.
+    const y = String(coords.y).padStart(3, '0');
+    
+    // Genera la URL substituint els placeholders pel valor formatat.
+    return L.Util.template(this._url, { z: z, x: x, y: y });
+  }
+}),
+
+
+  // Altres capes WMS
+  "Topografic": new L.tileLayer.wms("https://geoserveis.icgc.cat/servei/catalunya/mapa-base/wms/service?", {
+    layers: 'topografic',
+    format: 'image/jpeg',
+    continuousWorld: true,
+    attribution: 'Institut Cartogràfic i Geològic de Catalunya',
+  }),
+  "Administratiu": new L.tileLayer.wms("https://geoserveis.icgc.cat/servei/catalunya/mapa-base/wms/service?", {
+    layers: 'administratiu',
+    format: 'image/jpeg',
+    continuousWorld: true,
+    attribution: 'Institut Cartogràfic i Geològic de Catalunya',
+  }),
+  "Lidar": new L.tileLayer.wms("https://wms-mapa-lidar.idee.es/lidar?", {
+    layers: 'EL.GridCoverage',
+    format: 'image/jpeg',
+    EPSG: "3857",
+    continuousWorld: true,
+    attribution: 'Institut Cartogràfic i Geològic de Catalunya',
   })
 };
+
+
 
 baseLayers.OpenStreetMap.addTo(map);
 
@@ -151,6 +193,28 @@ const wmsLayer = L.tileLayer.wms("https://geoserveis.icgc.cat/geoserver/nivoalla
   noWrap: true
 });
 
+// Capa per a les comarques (color negre suau)
+var comarquesLayer = L.geoJSON(comarquesGeojson, {
+  style: function(feature) {
+    return {
+      color: "#262626", // negre suau (pots provar també "#555" segons el que et sembli)
+      weight: 1.5,
+      fill: false      // Només línies, sense omplir
+    };
+  }
+});
+
+// Capa per als municipis (color gris)
+var municipisGeojson = L.geoJSON(municipisGeojson, {
+  style: function(feature) {
+    return {
+      color: "#4F4F4F", // gris
+      weight: 1.2,
+      fill: false      // Només línies, sense omplir
+    };
+  }
+});
+
 // Creem un layer group per als markers de càmeres
 const camerasLayer = L.layerGroup();
 
@@ -158,7 +222,9 @@ const camerasLayer = L.layerGroup();
 L.control.layers(baseLayers, {
   "Precipitació": plujaneu_layer,
   "Zones de Perill d'Allaus": wmsLayer,
-  "Càmeres": camerasLayer
+  "Live cams": camerasLayer,
+  "Comarques": comarquesLayer,
+  "Municipis": municipisGeojson
 }, {
   position: 'topright'
 }).addTo(map);
@@ -188,7 +254,7 @@ if (typeof webcamPoints !== 'undefined' && Array.isArray(webcamPoints)) {
       <div style="text-align:center;">
         <h4 style="margin:0 0 5px;">${cam.location}</h4>
         <a href="${cam.link}" target="_blank">
-          <img src="${cam.image}" alt="${cam.location}" style="width:100%; max-width:200px; height:auto; border:1px solid #ccc;"/>
+          <img src="${cam.image}" alt="${cam.location}" style="width:300px; height:169px; object-fit: cover; border:1px solid #ccc;"/>
         </a>
         <p style="margin:5px 0 0;">
           <a href="${cam.link}" target="_blank">Veure càmera en directe</a>
@@ -220,20 +286,73 @@ setInterval(() => {
   setDateText(range_values[range_element.value]);
 }, 60000);
 
+// Funció per actualitzar range_values amb noves dades
+function updateRangeValues(newData) {
+  range_values = [...range_values, ...newData]; // Afegir noves dades
+  if (range_values.length > max_range_steps) {
+    range_values = range_values.slice(-max_range_steps); // Mantenir només les últimes dades
+  }
+}
+
 // Funció per alternar l'animació
 function toggleAnimation() {
+  const playButton = document.getElementById('play-button');
+
   if (isPlaying) {
-    clearInterval(animationInterval);
+    clearTimeout(animationInterval);
     isPlaying = false;
+    playButton.textContent = '▶️';
   } else {
-    animationInterval = setInterval(() => {
-      let newValue = (parseInt(range_element.value) + 1) % range_values.length;
-      range_element.value = newValue;
-      plujaneu_layer.refresh();
-      setDateText(range_values[newValue]);
-    }, animationSpeed);
     isPlaying = true;
+    playButton.textContent = '⏸️';
+
+    function nextFrame() {
+      if (!isPlaying) return;
+
+      let currentStep = parseInt(range_element.value);
+
+      // Si estem a l'últim fotograma, reiniciem a 0
+      if (currentStep >= range_values.length - 1) {
+        currentStep = 0;
+      } else {
+        currentStep++;
+      }
+
+      range_element.value = currentStep;
+      plujaneu_layer.refresh();
+      setDateText(range_values[currentStep]);
+
+      // Velocitat normal o pausa a l'últim fotograma
+      const delay = (currentStep === range_values.length - 1) ? pauseOnLastFrame : animationSpeed;
+      animationInterval = setTimeout(nextFrame, delay);
+    }
+
+    animationInterval = setTimeout(nextFrame, animationSpeed);
   }
+}
+
+// Simulació de recepció de noves dades (per exemple, cada 5 minuts)
+setInterval(() => {
+  const newData = generateNewData(); // Simula la generació de noves dades
+  updateRangeValues(newData); // Actualitza range_values
+}, 5 * 60 * 1000); // 5 minuts
+
+// Funció per simular la generació de noves dades
+function generateNewData() {
+  const newData = [];
+  const now = new Date();
+  for (let i = 0; i < 5; i++) { // Simula 5 nous passos
+    const newDate = new Date(now.getTime() + i * increment_mins * 60 * 1000);
+    newData.push({
+      any: newDate.getUTCFullYear(),
+      mes: newDate.getUTCMonth() + 1,
+      dia: newDate.getUTCDate(),
+      hora: newDate.getUTCHours(),
+      min: newDate.getUTCMinutes(),
+      utctime: newDate.getTime()
+    });
+  }
+  return newData;
 }
 
 // Funció per crear el GIF (aquí s'utilitza gif.js)
@@ -276,3 +395,19 @@ function createGIF() {
     captureInProgress = false;
   });
 }
+
+// Obtenim el botó i l'element de la llegenda
+const toggleLegendBtn = document.getElementById('toggle-legend');
+const legendEl = document.querySelector('.legend');
+
+// Afegim un event listener al botó
+toggleLegendBtn.addEventListener('click', () => {
+  // Si la llegenda està visible (display no és "none"), la amaguem; si no, la mostrem
+  if (legendEl.style.display === 'none' || legendEl.style.display === '') {
+    // Si no està definit o està en 'none', la mostrem
+    legendEl.style.display = 'block';
+  } else {
+    // En cas contrari, la ocultem
+    legendEl.style.display = 'none';
+  }
+});

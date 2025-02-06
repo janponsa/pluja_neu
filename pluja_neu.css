@@ -20,6 +20,9 @@ img.leaflet-tile {
     image-rendering: -webkit-optimize-contrast;
     image-rendering: pixelated;
 }
+img.plujaneu_layer {
+    image-rendering: pixelated;
+  }
 
 #plujaoneu-overlay {
     position: absolute;
@@ -67,7 +70,7 @@ img.leaflet-tile {
 
 #logo-container {
     position: absolute;
-    bottom: 80px;
+    bottom: 75px;
     left: 20px;
     padding: 5px 8px;
     background-color: rgba(255, 255, 255, 0.7);
@@ -78,18 +81,18 @@ img.leaflet-tile {
 }
 
 #logo {
-    width: 150px;
+    width: 200px;
     height: auto;
 }
 
-#play-button, #gif-button {
+#play-button {
     position: absolute;
-    bottom: 30px;
+    bottom: 20px;
     z-index: 1000;
     background-color: rgba(255, 255, 255, 0.85);
     border: 1px solid #ccc;
-    border-radius: 4px;
-    padding: 8px 15px;
+    border-radius: 7px;
+    padding: 4px 8px;
     cursor: pointer;
     backdrop-filter: blur(2px);
     box-shadow: 0 2px 8px rgba(0,0,0,0.1);
@@ -98,12 +101,29 @@ img.leaflet-tile {
     pointer-events: auto;
 }
 
+#gif-button {
+position: absolute;
+bottom: 20px;
+z-index: 1000;
+background-color: rgba(255, 255, 255, 0.85);
+border: 1px solid #ccc;
+border-radius: 7px;
+padding: 8px 15px;
+cursor: pointer;
+backdrop-filter: blur(2px);
+box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+font-size: 16px;
+transition: background-color 0.2s;
+pointer-events: auto;
+}
+
 #play-button {
+    font-size: 1.5rem;
     right: calc(35% + 30px);
 }
 
 #gif-button {
-    right: calc(35% + 100px);
+    right: calc(34% + 90px);
 }
 
 #play-button:hover, #gif-button:hover {
@@ -122,6 +142,25 @@ img.leaflet-tile {
     box-shadow: 0 2px 8px rgba(0,0,0,0.1);
     z-index: 10000;
 }
+#toggle-legend {
+    position: absolute;
+    top: 37%;              /* Posició a 20px des del top del contenidor (o de la pàgina) */
+    right: 20px;            /* Posició a 20px des de la dreta */
+    z-index: 1000;          /* Assegura't que el botó es mostri per sobre d'altres elements */
+    background-color: #439bf9;  /* Color de fons blau */
+    color: #fff;            /* Text blanc */
+    padding: 10px 10px;     /* Espai intern per fer-lo més còmode de prémer */
+    border: none;           /* Sense borde */
+    border-radius: 4px;     /* Cantonades arrodonides */
+    font-size: 11px;        /* Tamany de lletra */
+    cursor: pointer;        /* Canvia el cursor a pointer per indicar interactivitat */
+    box-shadow: 0 2px 2px rgba(0,0,0,0.3); /* Ombra suau per destacar-lo */
+    transition: background-color 0.3s; /* Transició per l'efecte hover */
+  }
+  
+  #toggle-legend:hover {
+    background-color: #0056b3;  /* Canvia a un blau més fosc en hover */
+  }
 
 .legend {
     position: absolute;
@@ -169,3 +208,13 @@ img.leaflet-tile {
 .label {
     white-space: nowrap;
 }
+.leaflet-popup-content-wrapper {
+    background: rgba(255, 255, 255, 0.8); /* Fons blanc amb 80% d'opacitat */
+    color: #000; /* Color del text negre */
+    border-radius: 5px;
+    box-shadow: 0 0 15px rgba(0,0,0,0.2);
+  }
+  
+  .leaflet-popup-tip {
+    background: rgba(255, 255, 255, 0.8); /* El mateix fons per la punta del popup */
+  }
