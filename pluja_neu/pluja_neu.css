@@ -68,7 +68,62 @@ img.plujaneu_layer {
     overflow: hidden;
 }
 
+.legend {
+    position: absolute;
+    bottom: 50px;
+    right: 20px;
+    z-index: 1;
+    background-color: rgba(255, 255, 255, 0.85);
+    border-radius: 8px;
+    padding: 10px 15px;
+    box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+    font-size: 13px;
+    width: 90px;
+    transform: translateZ(0);
+    will-change: transform;
+    pointer-events: none;
+}
 
+.legend-title {
+    font-weight: bold;
+    margin-bottom: 8px;
+    text-align: center;
+    font-size: 16px;
+}
+
+.legend-scale ul {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.legend-labels li {
+    margin-bottom: 2px;
+    display: flex;
+    align-items: center;
+}
+
+.legend-labels span[style] {
+    width: 25px;
+    height: 12px;
+    display: inline-block;
+    margin-right: 5px;
+    border: 1px solid #666;
+}
+
+.label {
+    white-space: nowrap;
+}
+.leaflet-popup-content-wrapper {
+    background: rgba(255, 255, 255, 0.8); /* Fons blanc amb 80% d'opacitat */
+    color: #000; /* Color del text negre */
+    border-radius: 5px;
+    box-shadow: 0 0 15px rgba(0,0,0,0.2);
+  }
+  
+  .leaflet-popup-tip {
+    background: rgba(255, 255, 255, 0.8); /* El mateix fons per la punta del popup */
+  }
 
 #logo-container {
     position: absolute;
