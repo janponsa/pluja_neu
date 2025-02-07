@@ -328,5 +328,28 @@ const webcamPoints = [
         location: "Vilaller - Alta Ribagorça - 985 m",
         image: "https://app.projecte4estacions.com/snapshots/vilaller-data.jpg",
         link: "https://app.projecte4estacions.com/player.php?cam=vilaller"
-    }
+    },
+	{
+        lat: 42.678318,
+        lon: 1.085778,
+        location: "Iisil - Pallars Sobirà - 1164 m",
+        image: "https://app.projecte4estacions.com/snapshots/isil-data.jpg",
+        link: "https://app.projecte4estacions.com/player.php?cam=isil"
+    },
+	{
+        lat:42.721226,
+        lon: 0.799028,
+        location: "Vilac - Val d'Aran - 1035 m",
+        image: "https://app.projecte4estacions.com/snapshots/vilac-data.jpg",
+        link: "https://app.projecte4estacions.com/player.php?cam=vilac"
+    },
+	{
+        lat:42.645734,
+        lon: 1.073836,
+        location: "Vall d'Isil - Pallars Sobirà - 1638 m",
+        image: "https://app.projecte4estacions.com/snapshots/vall-isil-data.jpg",
+        link: "https://app.projecte4estacions.com/player.php?cam=vall-isil"
+    },
+	
+	
 ];

@@ -92,7 +92,7 @@ function updateProgress(percent) {
 // Configuració de la capa pluja/neu
 const plujaneu_layer = L.tileLayerNoFlickering('https://static-m.meteo.cat/tiles/plujaneu/{any}/{mes}/{dia}/{hora}/{minut}/{z}/000/000/{x}/000/000/{y}.png', {
   attribution: '© <a href="https://www.meteo.cat/" target="_blank">Meteocat</a>',
-  opacity: 1,
+  opacity: 0.85,
   maxNativeZoom: 7
 });
 
@@ -114,9 +114,45 @@ plujaneu_layer.getTileUrl = function(coords) {
 
 // Inicialització del mapa
 setRangeValues();
+
+// Creació del mapa amb Leaflet
 const map = L.map('map', {
-  layers: [plujaneu_layer]
-}).setView([42.5, 1.5], 8);
+  layers: [plujaneu_layer] // Capa de dades inicials
+}).setView([42.5, 1.5], 8); // Configura la vista inicial (coordenades i zoom)
+
+// create a fullscreen button and add it to the map
+L.control.fullscreen({
+  position: 'topleft',
+  title: 'Pantalla completa',
+  titleCancel: 'Sortir de la pantalla completa',
+  content: null,
+  forceSeparateButton: false,
+  forcePseudoFullscreen: false, // Forçar pantalla completa real
+  fullscreenElement: false // Utilitzar el contenidor del mapa
+}).addTo(map);
+
+
+// events are fired when entering or exiting fullscreen.
+map.on('enterFullscreen', function () {
+	console.log('entered fullscreen');
+});
+
+map.on('exitFullscreen', function () {
+	console.log('exited fullscreen');
+});
+
+// Afegim un esdeveniment per canviar l'opacitat de les capes en funció de la capa activa
+map.on('baselayerchange', function(event) {
+  if (event.layer === baseLayers.Blanc) {
+    // Quan la capa "FonsBlanc" és seleccionada, establim l'opacitat a 0%
+    plujaneu_layer.setOpacity(1); // Estableix opacitat per a la capa plujaneu
+    // Aquí pots afegir altres capes si vols que tinguin opacitat 0.85
+  } else {
+    // Per a qualsevol altra capa, mantindrem l'opacitat a 0.85
+    plujaneu_layer.setOpacity(0.85); // Estableix opacitat per a la capa plujaneu
+  }
+});
+
 
 const baseLayers = {
   "OpenStreetMap": L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -131,49 +167,54 @@ const baseLayers = {
   "Fosc": L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
     attribution: '© <a href="https://carto.com/">CARTO</a>'
   }),
-  // Capa Meteocat
-"Meteocat": L.tileLayer('https://static-m.meteo.cat/tiles/fons/GoogleMapsCompatible/0{z}/000/000/{x}/000/000/{y}.png', {
-  attribution: '© <a href="https://carto.com/">CARTO</a>',
-  tms: true, // TMS activat
-  getTileUrl: function(coords) {
-    // Format del zoom: si el nivell és inferior a 10, afegeix un 0 al davant.
-    let z = (coords.z < 10 ? '0' : '') + coords.z;
-    
-    // Format de x: 3 dígits (afegeix zeros a l'esquerra si cal)
-    const x = String(coords.x).padStart(3, '0');
-    
-    // Ja que TMS està activat, Leaflet s'encarrega de la inversió,
-    // així que simplement fem el formatat de y amb 3 dígits.
-    const y = String(coords.y).padStart(3, '0');
-    
-    // Genera la URL substituint els placeholders pel valor formatat.
-    return L.Util.template(this._url, { z: z, x: x, y: y });
-  }
+"Blanc": L.tileLayer('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAQAAAAEAAQMAAABmvDolAAAAA1BMVEX///+nxBvIAAAAH0lEQVRoge3BAQ0AAADCoPdPbQ43oAAAAAAAAAAAvg0hAAABmmDh1QAAAABJRU5ErkJggg==', {
+    attribution: '',
+    tileSize: 256,
+    minZoom: 0,
+    maxZoom: 20
 }),
-
-
-  // Altres capes WMS
-  "Topografic": new L.tileLayer.wms("https://geoserveis.icgc.cat/servei/catalunya/mapa-base/wms/service?", {
+  "Meteocat": L.tileLayer('https://static-m.meteo.cat/tiles/fons/GoogleMapsCompatible/0{z}/000/000/{x}/000/000/{y}.png', {
+    attribution: '© <a href="https://meteo.cat">Meteocat</a>',
+    tms: true,
+    minZoom: 8,
+    maxZoom: 9
+  }),
+  // Capes WMS dins de baseLayers
+  "Topografic": L.tileLayer.wms("https://geoserveis.icgc.cat/servei/catalunya/mapa-base/wms/service?", {
     layers: 'topografic',
     format: 'image/jpeg',
     continuousWorld: true,
     attribution: 'Institut Cartogràfic i Geològic de Catalunya',
   }),
-  "Administratiu": new L.tileLayer.wms("https://geoserveis.icgc.cat/servei/catalunya/mapa-base/wms/service?", {
+  "Administratiu": L.tileLayer.wms("https://geoserveis.icgc.cat/servei/catalunya/mapa-base/wms/service?", {
     layers: 'administratiu',
     format: 'image/jpeg',
     continuousWorld: true,
     attribution: 'Institut Cartogràfic i Geològic de Catalunya',
   }),
-  "Lidar": new L.tileLayer.wms("https://wms-mapa-lidar.idee.es/lidar?", {
+  "Lidar": L.tileLayer.wms("https://wms-mapa-lidar.idee.es/lidar?", {
     layers: 'EL.GridCoverage',
     format: 'image/jpeg',
-    EPSG: "3857",
+    crs: L.CRS.EPSG3857, // Corregit: EPSG s'ha d'especificar amb crs
     continuousWorld: true,
-    attribution: 'Institut Cartogràfic i Geològic de Catalunya',
+    attribution: 'Instituto Geografico Nacional',
   })
 };
 
+// Controla el zoom només per a la capa Meteocat
+function updateZoomRestrictions() {
+  if (map.hasLayer(baseLayers.Meteocat)) {
+    map.options.minZoom = 8;
+    map.options.maxZoom = 9;
+    map.setZoom(Math.max(8, Math.min(9, map.getZoom()))); // Força el zoom vàlid
+  } else {
+    map.options.minZoom = 1; // Valor per defecte o ajusta segons altres capes
+    map.options.maxZoom = 18;
+  }
+}
+
+// Actualitza les restriccions quan es canvia de capa
+map.on('baselayerchange', updateZoomRestrictions);
 
 
 baseLayers.OpenStreetMap.addTo(map);
@@ -192,6 +233,35 @@ const wmsLayer = L.tileLayer.wms("https://geoserveis.icgc.cat/geoserver/nivoalla
   continuousWorld: true,
   noWrap: true
 });
+
+//Boto Mapa
+// Obtenim el botó de control
+const lockMapBtn = document.getElementById('lock-map');
+
+// Estableix una variable per controlar si el mapa està bloquejat o no
+let isMapLocked = false;
+
+// Afegir un esdeveniment al botó
+lockMapBtn.addEventListener('click', function() {
+  if (isMapLocked) {
+    // Si el mapa està bloquejat, el desbloquegem
+    map.dragging.enable(); // Permet moure el mapa
+    map.zoomControl.enable(); // Permet utilitzar el control de zoom
+    map.scrollWheelZoom.enable(); // Permet fer zoom amb el ratolí
+    lockMapBtn.textContent = "🔓"; // Canvia el text del botó
+  } else {
+    // Si el mapa no està bloquejat, el bloquegem
+    map.dragging.disable(); // Desactiva el desplaçament del mapa
+    map.zoomControl.disable(); // Desactiva el control de zoom
+    map.scrollWheelZoom.disable(); // Desactiva el zoom amb el ratolí
+    lockMapBtn.textContent = "🔒"; // Canvia el text del botó
+  }
+
+  // Canvia l'estat de bloqueig
+  isMapLocked = !isMapLocked;
+});
+
+
 
 // Capa per a les comarques (color negre suau)
 var comarquesLayer = L.geoJSON(comarquesGeojson, {
@@ -251,16 +321,16 @@ if (typeof webcamPoints !== 'undefined' && Array.isArray(webcamPoints)) {
     
     // Construir el contingut del popup
     const popupContent = `
-      <div style="text-align:center;">
-        <h4 style="margin:0 0 5px;">${cam.location}</h4>
-        <a href="${cam.link}" target="_blank">
-          <img src="${cam.image}" alt="${cam.location}" style="width:300px; height:169px; object-fit: cover; border:1px solid #ccc;"/>
-        </a>
-        <p style="margin:5px 0 0;">
-          <a href="${cam.link}" target="_blank">Veure càmera en directe</a>
-        </p>
-      </div>
-    `;
+    <div style="text-align:center;">
+      <h4 style="margin:0 0 5px;">${cam.location}</h4>
+      <a href="${cam.link}" target="_blank">
+        <img src="${cam.image}?_=${Date.now()}" alt="${cam.location}" style="width:300px; height:169px; object-fit: cover; border:1px solid #ccc;"/>
+      </a>
+      <p style="margin:5px 0 0;">
+        <a href="${cam.link}" target="_blank">Veure càmera en directe</a>
+      </p>
+    </div>
+  `;  
     // Assignar el popup al marcador
     marker.bindPopup(popupContent);
     // Afegir el marcador al layer group de càmeres
@@ -355,46 +425,143 @@ function generateNewData() {
   return newData;
 }
 
-// Funció per crear el GIF (aquí s'utilitza gif.js)
-// Nota: Per capturar l'estat actual del mapa pots utilitzar, per exemple, la biblioteca leaflet-image
+// Funció per crear el GIF (utilitzant html2canvas)
 function createGIF() {
   if (captureInProgress) return;
   captureInProgress = true;
-  
+
+  if (isPlaying) toggleAnimation();
+
+  // Obtenir dimensions VISIBLES de la pantalla
+  const targetWidth = window.innerWidth;
+  const targetHeight = window.innerHeight;
+
+  // Configuració del GIF amb mida real de pantalla
   gif = new GIF({
     workers: 2,
     quality: 10,
-    workerScript: gifWorkerUrl,
-    width: 512,  // ajusta segons les teves necessitats
-    height: 512  // ajusta segons les teves necessitats
+    width: targetWidth,
+    height: targetHeight,
+    transparent: 0xFFFFFFFF,
+    workerScript: gifWorkerUrl
   });
 
-  let frame = 0;
-  function addFrame() {
-    if (frame >= totalGifFrames) {
+  let currentStep = 0;
+  const originalValue = range_element.value;
+
+  async function captureFrame() {
+    if (currentStep >= totalGifFrames) {
       gif.render();
       return;
     }
-    // Exemple de capturar l'estat actual del mapa utilitzant leaflet-image:
-    leafletImage(map, function(err, canvas) {
-      if (err) {
-        console.error(err);
-        captureInProgress = false;
-        return;
-      }
-      gif.addFrame(canvas, { delay: gifFrameDelay });
-      frame++;
-      addFrame();
-    });
-  }
-  addFrame();
+  
+    // Desactivar interaccions
+    const originalDragging = map.dragging.enabled();
+    const originalScrollWheelZoom = map.scrollWheelZoom.enabled();
+    
+    // Guardar estat del zoom control
+    const zoomControlElement = document.querySelector('.leaflet-control-zoom');
+    const originalZoomControl = zoomControlElement && !zoomControlElement.classList.contains('leaflet-disabled');
+  
+    map.dragging.disable();
+    map.zoomControl.disable();
+    map.scrollWheelZoom.disable();
 
-  gif.on('finished', function(blob) {
-    // Per exemple, obrir el GIF en una nova pestanya
+    // Fixar vista actual
+    const originalCenter = map.getCenter();
+    const originalZoom = map.getZoom();
+    map.setView(originalCenter, originalZoom, { animate: false });
+
+    // Actualitzar dades
+    range_element.value = currentStep;
+    plujaneu_layer.refresh();
+    setDateText(range_values[currentStep]);
+
+    // Esperar a càrrega de tiles
+    await new Promise(resolve => {
+      let loaded = 0;
+      const totalTiles = Object.keys(plujaneu_layer._tiles).length;
+      
+      const checkLoaded = () => {
+        loaded++;
+        if (loaded >= totalTiles) resolve();
+      };
+      
+      plujaneu_layer.on('load', checkLoaded);
+      plujaneu_layer.on('tileerror', checkLoaded);
+      setTimeout(resolve, 2000); // Timeout de seguretat
+    });
+
+    try {
+      // Capturar SOL la part visible
+      const canvas = await html2canvas(document.documentElement, {
+        useCORS: true,
+        logging: false,
+        ignoreElements: (el) => ['gif-button', 'toggle-legend'].includes(el.id),
+        width: targetWidth,
+        height: targetHeight,
+        x: window.scrollX,
+        y: window.scrollY,
+        windowWidth: targetWidth,
+        windowHeight: targetHeight,
+        onclone: (clonedDoc) => {
+          clonedDoc.getElementById('map').style.transform = 'none';
+        }
+      });
+
+      // Retallar al tamany exacte
+      const ctx = canvas.getContext('2d');
+      const imageData = ctx.getImageData(0, 0, targetWidth, targetHeight);
+      canvas.width = targetWidth;
+      canvas.height = targetHeight;
+      ctx.putImageData(imageData, 0, 0);
+
+      gif.addFrame(canvas, { delay: gifFrameDelay });
+      updateProgress((++currentStep / totalGifFrames) * 100);
+      
+      // Restaurar controls
+      if (originalDragging) map.dragging.enable();
+      if (originalZoomControl) map.zoomControl.enable();
+      if (originalScrollWheelZoom) map.scrollWheelZoom.enable();
+
+      captureFrame();
+    } catch (error) {
+      console.error("Error:", error);
+      captureInProgress = false;
+      map.dragging.enable();
+      map.zoomControl.enable();
+      map.scrollWheelZoom.enable();
+    }
+  }
+
+  captureFrame();
+
+  gif.on('finished', (blob) => {
+    range_element.value = originalValue;
+    plujaneu_layer.refresh();
+    setDateText(range_values[originalValue]);
     window.open(URL.createObjectURL(blob));
     captureInProgress = false;
   });
 }
+
+// Funció per capturar una captura de pantalla completa del mapa
+function captureScreenshotWithLeafletImage() {
+  // leafletImage ja utilitza el que està renderitzat en el mapa sense tornar a fer peticions per les imatges
+  leafletImage(map, function(err, canvas) {
+    if (err) {
+      console.error("Error capturant el mapa:", err);
+      return;
+    }
+    // Converteix el canvas a DataURL i obre una nova finestra amb la imatge
+    const dataUrl = canvas.toDataURL();
+    window.open(dataUrl);
+  });
+}
+
+// Afegim l'event listener al botó de captura de pantalla (emoticona de càmera)
+document.getElementById('screenshot-button').addEventListener('click', captureScreenshotWithLeafletImage);
+
 
 // Obtenim el botó i l'element de la llegenda
 const toggleLegendBtn = document.getElementById('toggle-legend');
@@ -411,3 +578,4 @@ toggleLegendBtn.addEventListener('click', () => {
     legendEl.style.display = 'none';
   }
 });
+

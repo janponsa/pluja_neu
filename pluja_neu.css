@@ -1,7 +1,7 @@
 body {
     margin: 0;
     padding: 0;
-    overflow: hidden;
+    overflow: visible;
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
 }
 
@@ -9,6 +9,9 @@ body {
     height: 100vh;
     width: 100vw;
     position: fixed;
+    overflow: visible;
+    backface-visibility: hidden;
+    contain: none;
     top: 0;
     left: 0;
     background: #f0f0f0;
@@ -22,7 +25,7 @@ img.leaflet-tile {
 }
 img.plujaneu_layer {
     image-rendering: pixelated;
-  }
+}
 
 #plujaoneu-overlay {
     position: absolute;
@@ -67,100 +70,6 @@ img.plujaneu_layer {
     border-radius: 4px !important;
     overflow: hidden;
 }
-
-#logo-container {
-    position: absolute;
-    bottom: 75px;
-    left: 20px;
-    padding: 5px 8px;
-    background-color: rgba(255, 255, 255, 0.7);
-    border-radius: 8px;
-    height: auto;
-    z-index: 1001;
-    pointer-events: auto;
-}
-
-#logo {
-    width: 200px;
-    height: auto;
-}
-
-#play-button {
-    position: absolute;
-    bottom: 20px;
-    z-index: 1000;
-    background-color: rgba(255, 255, 255, 0.85);
-    border: 1px solid #ccc;
-    border-radius: 7px;
-    padding: 4px 8px;
-    cursor: pointer;
-    backdrop-filter: blur(2px);
-    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-    font-size: 16px;
-    transition: background-color 0.2s;
-    pointer-events: auto;
-}
-
-#gif-button {
-position: absolute;
-bottom: 20px;
-z-index: 1000;
-background-color: rgba(255, 255, 255, 0.85);
-border: 1px solid #ccc;
-border-radius: 7px;
-padding: 8px 15px;
-cursor: pointer;
-backdrop-filter: blur(2px);
-box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-font-size: 16px;
-transition: background-color 0.2s;
-pointer-events: auto;
-}
-
-#play-button {
-    font-size: 1.5rem;
-    right: calc(35% + 30px);
-}
-
-#gif-button {
-    right: calc(34% + 95px);
-}
-
-#play-button:hover, #gif-button:hover {
-    background-color: rgba(255, 255, 255, 0.95);
-}
-
-#progress-container {
-    position: absolute;
-    bottom: 80px;
-    right: 20px;
-    background: rgba(255, 255, 255, 0.9);
-    padding: 10px 20px;
-    border-radius: 8px;
-    display: none;
-    font-size: 14px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-    z-index: 10000;
-}
-#toggle-legend {
-    position: absolute;
-    top: 37%;              /* Posició a 20px des del top del contenidor (o de la pàgina) */
-    right: 20px;            /* Posició a 20px des de la dreta */
-    z-index: 1000;          /* Assegura't que el botó es mostri per sobre d'altres elements */
-    background-color: #439bf9;  /* Color de fons blau */
-    color: #fff;            /* Text blanc */
-    padding: 10px 10px;     /* Espai intern per fer-lo més còmode de prémer */
-    border: none;           /* Sense borde */
-    border-radius: 4px;     /* Cantonades arrodonides */
-    font-size: 11px;        /* Tamany de lletra */
-    cursor: pointer;        /* Canvia el cursor a pointer per indicar interactivitat */
-    box-shadow: 0 2px 2px rgba(0,0,0,0.3); /* Ombra suau per destacar-lo */
-    transition: background-color 0.3s; /* Transició per l'efecte hover */
-  }
-  
-  #toggle-legend:hover {
-    background-color: #0056b3;  /* Canvia a un blau més fosc en hover */
-  }
 
 .legend {
     position: absolute;
@@ -218,3 +127,100 @@ pointer-events: auto;
   .leaflet-popup-tip {
     background: rgba(255, 255, 255, 0.8); /* El mateix fons per la punta del popup */
   }
+
+#logo-container {
+    position: absolute;
+    bottom: 75px;
+    left: 20px;
+    padding: 5px 8px;
+    background-color: rgba(255, 255, 255, 0.7);
+    border-radius: 8px;
+    height: auto;
+    z-index: 1001;
+    pointer-events: auto;
+}
+
+#logo {
+    width: 200px;
+    height: auto;
+}
+
+#play-button {
+    position: absolute;
+    bottom: 20px;
+    z-index: 1000;
+    background-color: rgba(255, 255, 255, 0.85);
+    border: 1px solid #ccc;
+    border-radius: 7px;
+    padding: 4px 8px;
+    cursor: pointer;
+    backdrop-filter: blur(2px);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    font-size: 16px;
+    transition: background-color 0.2s;
+    pointer-events: auto;
+}
+
+#play-button {
+    font-size: 1.5rem;
+    right: calc(35% + 30px);
+}
+
+
+#play-button:hover, #gif-button:hover {
+    background-color: rgba(255, 255, 255, 0.95);
+}
+
+/* Estil per al menú lateral amb només els tres botons */
+#side-menu {
+  position: fixed;
+  top: 50%;
+  left: 0;
+  transform: translateY(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  padding: 20px;
+  background-color: rgba(244, 244, 244, 0.85);  /* Fons amb transparència */
+  box-shadow: 2px 0px 5px rgba(0, 0, 0, 0.3);  /* Ombra per al menú */
+  z-index: 109999;
+  
+  /* Afegim arrodoniment només al costat dret */
+  border-top-right-radius: 15px;   /* Arrodonir només la part superior dreta */
+  border-bottom-right-radius: 15px; /* Arrodonir només la part inferior dreta */
+}
+
+#side-menu button {
+  width: 50px;               /* Amplada ajustada per a emoticones */
+  height: 50px;              /* Altura ajustada per a emoticones */
+  font-size: 24px;           /* Mida més gran per a les emoticones */
+  padding: 10px;
+  border-radius: 50%;        /* Fer els botons rodons */
+  border: none;
+  background-color: #55a7fe; /* Color de fons dels botons */
+  color: white;
+  cursor: pointer;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  transition: background-color 0.2s;
+}
+
+/* Opcional: Si vols que el menú tingui una mica més de transparència quan es passa per sobre */
+#side-menu:hover {
+  background-color: rgba(244, 244, 244, 0.9);  /* Fons més opac al passar el ratolí per sobre */
+}
+
+
+/* Estil per als botons específics */
+#toggle-legend:hover {
+  background-color: #28a745;  /* Verd per al botó de bloqueig */
+}
+
+#lock-map:hover {
+  background-color: #006abd;  /* Verd més fosc quan es passa per sobre */
+}
+
+#gif-button:hover {
+  background-color: #ffc107;  /* Groc per al botó de crear GIF */
+}
