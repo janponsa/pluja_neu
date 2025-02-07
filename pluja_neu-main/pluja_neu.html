@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="ca">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Radar MeteoCAT i Zones de Perill d'Allaus</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+  <link rel="stylesheet" href="pluja_neu.css">
+</head>
+<body>
+  <div id="gif-container">
+    <div id="logo-container">
+      <img id="logo" src="https://www.projecte4estacions.com/uploads/1/1/9/0/119049478/published/logo-h-azul.png" alt="Logo" crossorigin="anonymous" />
+    </div>
+    <div id="map"></div>
+    <div id="plujaoneu-overlay">
+      <span id="plujaoneu-text">Carregant dades...</span>
+    </div>
+    <div class="legend">
+      <div class="legend-title">Tipus de precipitació</div>
+      <div class="legend-scale">
+        <ul class="legend-labels">
+          <li><span style="background-color:#FFC8C8"></span> <span class="label"></span></li>
+          <li><span style="background-color:#F8A0A0"></span> <span class="label"></span></li>
+          <li><span style="background-color:#E67070"></span> <span class="label">Pluja</span></li>
+          <li><span style="background-color:#E65050"></span> <span class="label"></span></li>
+          <li><span style="background-color:#C83C3C"></span> <span class="label"></span></li>
+          <li><span style="background-color:#A42020"></span> <span class="label"></span></li>
+          <li><span style="background-color:#C8FFBE"></span> <span class="label"></span></li>
+          <li><span style="background-color:#B4FAAA"></span> <span class="label"></span></li>
+          <li><span style="background-color:#78F573"></span> <span class="label">Aiguaneu</span></li>
+          <li><span style="background-color:#50F050"></span> <span class="label"></span></li>
+          <li><span style="background-color:#37D23C"></span> <span class="label"></span></li>
+          <li><span style="background-color:#0FA00F"></span> <span class="label"></span></li>
+          <li><span style="background-color:#B4F0FA"></span> <span class="label"></span></li>
+          <li><span style="background-color:#96D2FA"></span> <span class="label"></span></li>
+          <li><span style="background-color:#50A5F5"></span> <span class="label">Neu</span></li>
+          <li><span style="background-color:#3C96F5"></span> <span class="label"></span></li>
+          <li><span style="background-color:#2882F0"></span> <span class="label"></span></li>
+          <li><span style="background-color:#1464D2"></span> <span class="label"></span></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+  <input type="range" id="range-slider" min="0" max="29" step="1" value="29">
+  <button id="play-button">▶</button>
+  <button id="gif-button">🎥 Crear GIF</button>
+  <!-- Botó per mostrar/amagar la llegenda -->
+  <button id="toggle-legend">Mostra/Amaga</button>
+  <div id="progress-container">Generant GIF... <span id="progress">0%</span></div>
+
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+  <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
+  <script src="https://radarspain.es/static/js/gif.js"></script>
+  <script src="comarques.js"></script>
+  <script src="municipis.js"></script>
+  <script src="webcams.js"></script>
+  <script src="pluja_neu.js"></script>
+</body>
+</html>
