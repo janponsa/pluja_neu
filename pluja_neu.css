@@ -71,8 +71,68 @@ img.plujaneu_layer {
     overflow: hidden;
 }
 
+.llegenda {
+  position: fixed;
+  bottom: 50px;
+  right: 20px;
+  z-index: 1000; /* Assegura't que estigui per sobre del mapa */
+  background-color: rgba(255, 255, 255, 0.85);
+  border-radius: 8px;
+  padding: 10px 15px;
+  box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+  font-size: 13px;
+  min-width: 120px; /* Amplada mínima per evitar deformacions */
+  max-width: 200px; /* Amplada màxima */
+  width: 90px;
+  transform: translateZ(0);
+  will-change: transform;
+  /* Elimina pointer-events per permetre la interacció */
+  pointer-events: auto;
+  cursor: move; /* Opcional: mostra un cursor de moviment */
+}
+
+.llegenda-title {
+  font-weight: bold;
+  margin-bottom: 8px;
+  text-align: center;
+  font-size: 16px;
+}
+
+.llegenda-scale ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.llegenda-labels li {
+  margin-bottom: 2px;
+  display: flex;
+  align-items: center;
+  gap: 0px; /* Controla l'espai entre quadrat de color i text */
+}
+
+.llegenda-labels span[style] {
+  width: 45px;
+  height: 12px;
+  border: 1px solid #333 !important;
+  flex-shrink: 0; /* Evita compressió */
+  margin-right: 5px;
+}
+.llegenda-labels .label {
+  flex-grow: 1;
+  white-space: nowrap;
+}
+
+.llegenda-labels .label:empty {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
 .legend {
-    position: absolute;
+    position: fixed;
     bottom: 50px;
     right: 20px;
     z-index: 1000; /* Assegura't que estigui per sobre del mapa */
@@ -88,7 +148,6 @@ img.plujaneu_layer {
     pointer-events: auto;
     cursor: move; /* Opcional: mostra un cursor de moviment */
 }
-
 
 .legend-title {
     font-weight: bold;

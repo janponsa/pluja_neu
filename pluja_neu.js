@@ -157,6 +157,61 @@ map.on('baselayerchange', function(event) {
   }
 });
 
+// Capa de radar (nova)
+const radar_layer = L.tileLayerNoFlickering('https://static-m.meteo.cat/tiles/radar/{any}/{mes}/{dia}/{hora}/{minut}/{z}/000/000/{x}/000/000/{y}.png', {
+  attribution: '© <a href="https://www.meteo.cat/" target="_blank">Meteocat</a>',
+  opacity: 0.85,
+  maxNativeZoom: 7
+});
+
+radar_layer.on('add', function() {
+  radar_layer.getContainer().classList.add('pixelated-tile');
+});
+
+radar_layer.getTileUrl = function(coords) {
+  if (!range_values.length || range_element.value >= range_values.length) return '';
+  
+  const r = range_values[range_element.value];
+  return L.Util.template(this._url, {
+    any: r.any,
+    mes: fillTo(r.mes, 2),
+    dia: fillTo(r.dia, 2),
+    hora: fillTo(r.hora, 2),
+    minut: fillTo(r.min, 2),
+    z: fillTo(coords.z, 2),
+    x: fillTo(coords.x, 3),
+    y: fillTo(Math.abs(coords.y - 127), 3)
+  });
+};
+
+// Llista de capes dependents del temps
+const timeDependentLayers = [plujaneu_layer, radar_layer];
+
+// Modificar l'esdeveniment del slider
+range_element.addEventListener('input', () => {
+  timeDependentLayers.forEach(layer => {
+    if (map.hasLayer(layer)) layer.refresh();
+  });
+  setDateText(range_values[range_element.value]);
+});
+
+// Modificar la funció d'animació
+function nextFrame() {
+  if (!isPlaying) return;
+  
+  let currentStep = parseInt(range_element.value);
+  if (currentStep >= range_values.length - 1) currentStep = 0;
+  else currentStep++;
+  
+  range_element.value = currentStep;
+  timeDependentLayers.forEach(layer => {
+    if (map.hasLayer(layer)) layer.refresh();
+  });
+  setDateText(range_values[currentStep]);
+  
+  const delay = (currentStep === range_values.length - 1) ? pauseOnLastFrame : animationSpeed;
+  animationInterval = setTimeout(nextFrame, delay);
+}
 
 const baseLayers = {
   "OpenStreetMap": L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -265,8 +320,6 @@ lockMapBtn.addEventListener('click', function() {
   isMapLocked = !isMapLocked;
 });
 
-
-
 // Capa per a les comarques (color negre suau)
 var comarquesLayer = L.geoJSON(comarquesGeojson, {
   style: function(feature) {
@@ -295,6 +348,7 @@ const camerasLayer = L.layerGroup();
 // Afegim els controls de capes. Incloem la capa "Càmeres" com a overlay.
 L.control.layers(baseLayers, {
   "PoN sense corregir": plujaneu_layer,
+  "CAPPI sense corregir": radar_layer,
   "Zones de Perill d'Allaus": wmsLayer,
   "Live cams": camerasLayer,
   "Comarques": comarquesLayer,
@@ -345,209 +399,188 @@ if (typeof webcamPoints !== 'undefined' && Array.isArray(webcamPoints)) {
 /* ======================================================
    Event Listeners i funcions addicionals
    ====================================================== */
-range_element.addEventListener('input', () => {
-  plujaneu_layer.refresh();
-  setDateText(range_values[range_element.value]);
-});
-
-document.getElementById('play-button').addEventListener('click', toggleAnimation);
-document.getElementById('gif-button').addEventListener('click', createGIF);
-
-// Actualització automàtica cada minut
-setInterval(() => {
-  setRangeValues();
-  plujaneu_layer.refresh();
-  setDateText(range_values[range_element.value]);
-}, 60000);
-
-// Funció per actualitzar range_values amb noves dades
-function updateRangeValues(newData) {
-  range_values = [...range_values, ...newData]; // Afegir noves dades
-  if (range_values.length > max_range_steps) {
-    range_values = range_values.slice(-max_range_steps); // Mantenir només les últimes dades
-  }
-}
-
-// Funció per alternar l'animació
-function toggleAnimation() {
-  const playButton = document.getElementById('play-button');
-
-  if (isPlaying) {
-    clearTimeout(animationInterval);
-    isPlaying = false;
-    playButton.textContent = '▶️';
-  } else {
-    isPlaying = true;
-    playButton.textContent = '⏸️';
-
-    function nextFrame() {
-      if (!isPlaying) return;
-
-      let currentStep = parseInt(range_element.value);
-
-      // Si estem a l'últim fotograma, reiniciem a 0
-      if (currentStep >= range_values.length - 1) {
-        currentStep = 0;
-      } else {
-        currentStep++;
+   range_element.addEventListener('input', () => {
+    // Actualitzar totes les capes temporals actives
+    timeDependentLayers.forEach(layer => {
+      if (map.hasLayer(layer)) layer.refresh();
+    });
+    setDateText(range_values[range_element.value]);
+  });
+  
+  document.getElementById('play-button').addEventListener('click', toggleAnimation);
+  document.getElementById('gif-button').addEventListener('click', createGIF);
+  
+  // Actualització automàtica cada minut
+  setInterval(() => {
+    setRangeValues();
+    timeDependentLayers.forEach(layer => {
+      if (map.hasLayer(layer)) layer.refresh();
+    });
+    setDateText(range_values[range_element.value]);
+  }, 60000);
+  
+  // Funció per alternar l'animació
+  function toggleAnimation() {
+    const playButton = document.getElementById('play-button');
+  
+    if (isPlaying) {
+      clearTimeout(animationInterval);
+      isPlaying = false;
+      playButton.textContent = '▶️';
+    } else {
+      isPlaying = true;
+      playButton.textContent = '⏸️';
+  
+      function nextFrame() {
+        if (!isPlaying) return;
+  
+        let currentStep = parseInt(range_element.value);
+        currentStep = currentStep >= range_values.length - 1 ? 0 : currentStep + 1;
+        range_element.value = currentStep;
+  
+        // Actualitzar totes les capes
+        timeDependentLayers.forEach(layer => {
+          if (map.hasLayer(layer)) layer.refresh();
+        });
+        setDateText(range_values[currentStep]);
+  
+        const delay = (currentStep === range_values.length - 1) ? pauseOnLastFrame : animationSpeed;
+        animationInterval = setTimeout(nextFrame, delay);
       }
-
-      range_element.value = currentStep;
-      plujaneu_layer.refresh();
-      setDateText(range_values[currentStep]);
-
-      // Velocitat normal o pausa a l'últim fotograma
-      const delay = (currentStep === range_values.length - 1) ? pauseOnLastFrame : animationSpeed;
-      animationInterval = setTimeout(nextFrame, delay);
+  
+      animationInterval = setTimeout(nextFrame, animationSpeed);
     }
-
-    animationInterval = setTimeout(nextFrame, animationSpeed);
   }
-}
-
-// Simulació de recepció de noves dades (per exemple, cada 5 minuts)
-setInterval(() => {
-  const newData = generateNewData(); // Simula la generació de noves dades
-  updateRangeValues(newData); // Actualitza range_values
-}, 5 * 60 * 1000); // 5 minuts
-
-// Funció per simular la generació de noves dades
-function generateNewData() {
-  const newData = [];
-  const now = new Date();
-  for (let i = 0; i < 5; i++) { // Simula 5 nous passos
-    const newDate = new Date(now.getTime() + i * increment_mins * 60 * 1000);
-    newData.push({
-      any: newDate.getUTCFullYear(),
-      mes: newDate.getUTCMonth() + 1,
-      dia: newDate.getUTCDate(),
-      hora: newDate.getUTCHours(),
-      min: newDate.getUTCMinutes(),
-      utctime: newDate.getTime()
+  
+  // Funció per crear el GIF (utilitzant html2canvas)
+  function createGIF() {
+    if (captureInProgress) return;
+    captureInProgress = true;
+  
+    if (isPlaying) toggleAnimation();
+  
+    const targetWidth = document.documentElement.clientWidth;
+    const targetHeight = document.documentElement.clientHeight;
+  
+    gif = new GIF({
+      workers: 2,
+      quality: 4,
+      width: targetWidth,
+      height: targetHeight,
+      transparent: 0xFFFFFFFF,
+      workerScript: gifWorkerUrl
+    });
+  
+    let currentStep = 0;
+    const originalValue = range_element.value;
+  
+    async function captureFrame() {
+      if (currentStep >= totalGifFrames) {
+        gif.render();
+        return;
+      }
+  
+      map.dragging.disable();
+      map.zoomControl.disable();
+      map.scrollWheelZoom.disable();
+  
+      range_element.value = currentStep;
+      // Actualitzar totes les capes
+      timeDependentLayers.forEach(layer => {
+        if (map.hasLayer(layer)) layer.refresh();
+      });
+      setDateText(range_values[currentStep]);
+  
+      await new Promise(resolve => setTimeout(resolve, 300));
+  
+      try {
+        const canvas = await html2canvas(document.documentElement, {
+          useCORS: true,
+          logging: true,
+          windowWidth: targetWidth,
+          windowHeight: targetHeight,
+          scale: 1,
+          ignoreElements: (el) => false,
+          onclone: (clonedDoc) => {
+            clonedDoc.getElementById('map').style.transform = 'none';
+            
+            const clonedLegend = clonedDoc.querySelector('.legend');
+            if (clonedLegend) {
+              const originalLegend = document.querySelector('.legend');
+              const rect = originalLegend.getBoundingClientRect();
+              
+              clonedLegend.style.position = 'fixed';
+              clonedLegend.style.left = `${rect.left}px`;
+              clonedLegend.style.top = `${rect.top}px`;
+              clonedLegend.style.opacity = '1';
+              
+              clonedLegend.querySelectorAll('li').forEach(li => {
+                const label = li.querySelector('.label');
+                if (label && !label.textContent.trim()) {
+                  label.remove();
+                }
+                const colorSpan = li.querySelector('span[style]');
+                if (colorSpan) {
+                  colorSpan.style.cssText += ';width:25px!important;height:12px!important;border:1px solid #333!important;';
+                }
+              });
+            }
+            clonedDoc.body.style.overflow = 'hidden';
+            clonedDoc.body.style.background = '#fff';
+          }
+        });
+  
+        const ctx = canvas.getContext('2d');
+        const imageData = ctx.getImageData(0, 0, targetWidth, targetHeight);
+        canvas.width = targetWidth;
+        canvas.height = targetHeight;
+        ctx.putImageData(imageData, 0, 0);
+  
+        gif.addFrame(canvas, { delay: gifFrameDelay });
+        updateProgress((++currentStep / totalGifFrames) * 100);
+        
+        captureFrame();
+      } catch (error) {
+        console.error("Error:", error);
+        captureInProgress = false;
+      } finally {
+        map.dragging.enable();
+        map.zoomControl.enable();
+        map.scrollWheelZoom.enable();
+      }
+    }
+  
+    captureFrame();
+  
+    gif.on('finished', (blob) => {
+      range_element.value = originalValue;
+      // Restaurar totes les capes
+      timeDependentLayers.forEach(layer => {
+        if (map.hasLayer(layer)) layer.refresh();
+      });
+      setDateText(range_values[originalValue]);
+      
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'animacio-meteo.gif';
+      a.click();
+      captureInProgress = false;
     });
   }
-  return newData;
-}
-
-// Funció per crear el GIF (utilitzant html2canvas)
-function createGIF() {
-  if (captureInProgress) return;
-  captureInProgress = true;
-
-  if (isPlaying) toggleAnimation();
-
-  // [1] Obtenir dimensions del viewport visible (sense scroll)
-  const targetWidth = document.documentElement.clientWidth;
-  const targetHeight = document.documentElement.clientHeight;
-
-  // [2] Configurar el GIF amb les dimensions reals
-  gif = new GIF({
-    workers: 2,
-    quality: 4,
-    width: targetWidth,
-    height: targetHeight,
-    transparent: 0xFFFFFFFF,
-    workerScript: gifWorkerUrl
+  
+  // Modificar l'event de canvi de capa base
+  map.on('baselayerchange', function(event) {
+    timeDependentLayers.forEach(layer => {
+      if (event.layer === baseLayers.Blanc) {
+        layer.setOpacity(map.hasLayer(layer) ? 1 : 0);
+      } else {
+        layer.setOpacity(map.hasLayer(layer) ? 0.85 : 0);
+      }
+    });
   });
 
-  let currentStep = 0;
-  const originalValue = range_element.value;
-
-  async function captureFrame() {
-    if (currentStep >= totalGifFrames) {
-      gif.render();
-      return;
-    }
-
-    // [3] Desactivar interaccions temporals
-    map.dragging.disable();
-    map.zoomControl.disable();
-    map.scrollWheelZoom.disable();
-
-    // [4] Actualitzar dades del mapa
-    range_element.value = currentStep;
-    plujaneu_layer.refresh();
-    setDateText(range_values[currentStep]);
-
-    // [5] Esperar a que es carreguin tots els elements (inclosos tiles)
-    await new Promise(resolve => setTimeout(resolve, 300)); 
-
-    try {
-      // [6] Capturar TOTA la finestra visible amb html2canvas
-      const canvas = await html2canvas(document.documentElement, {
-        useCORS: true,
-        logging: true,
-        windowWidth: targetWidth,
-        windowHeight: targetHeight,
-        scale: 1,
-        ignoreElements: (el) => false,
-        onclone: (clonedDoc) => {
-          clonedDoc.getElementById('map').style.transform = 'none';
-          
-          const clonedLegend = clonedDoc.querySelector('.legend');
-          if (clonedLegend) {
-            const originalLegend = document.querySelector('.legend');
-            const rect = originalLegend.getBoundingClientRect();
-            
-            clonedLegend.style.position = 'fixed';
-            clonedLegend.style.left = `${rect.left}px`;
-            clonedLegend.style.top = `${rect.top}px`;
-            clonedLegend.style.opacity = '1';
-            
-            clonedLegend.querySelectorAll('li').forEach(li => {
-              const label = li.querySelector('.label');
-              if (label && !label.textContent.trim()) {
-                label.remove();
-              }
-              const colorSpan = li.querySelector('span[style]');
-              if (colorSpan) {
-                colorSpan.style.cssText += ';width:25px!important;height:12px!important;border:1px solid #333!important;';
-              }
-            });
-          }
-          clonedDoc.body.style.overflow = 'hidden';
-          clonedDoc.body.style.background = '#fff';
-        }
-      }); // Tancament correcte de html2canvas
-
-      // [7] Processar el canvas 
-      const ctx = canvas.getContext('2d');
-      const imageData = ctx.getImageData(0, 0, targetWidth, targetHeight);
-      canvas.width = targetWidth;
-      canvas.height = targetHeight;
-      ctx.putImageData(imageData, 0, 0);
-
-      gif.addFrame(canvas, { delay: gifFrameDelay });
-      updateProgress((++currentStep / totalGifFrames) * 100);
-      
-      captureFrame();
-    } catch (error) {
-      console.error("Error:", error);
-      captureInProgress = false;
-    } finally {
-      // [8] Reactivar controls del mapa
-      map.dragging.enable();
-      map.zoomControl.enable();
-      map.scrollWheelZoom.enable();
-    }
-  }
-
-  captureFrame();
-
-  gif.on('finished', (blob) => {
-    range_element.value = originalValue;
-    plujaneu_layer.refresh();
-    setDateText(range_values[originalValue]);
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'animacio-meteo.gif';
-    a.click();
-    captureInProgress = false;
-  });
-}
-
-// Funció per capturar una captura de pantalla completa del mapa
+  // Funció per capturar una captura de pantalla completa del mapa
 function captureScreenshotWithLeafletImage() {
   // leafletImage ja utilitza el que està renderitzat en el mapa sense tornar a fer peticions per les imatges
   leafletImage(map, function(err, canvas) {
@@ -567,87 +600,106 @@ document.getElementById('screenshot-button').addEventListener('click', captureSc
 
 // Obtenim el botó i l'element de la llegenda
 const toggleLegendBtn = document.getElementById('toggle-legend');
-const legendEl = document.querySelector('.legend');
+const llegendaPluja = document.querySelector('.legend');
+const llegendaRadar = document.querySelector('.llegenda');
 
 // Afegim un event listener al botó
 toggleLegendBtn.addEventListener('click', () => {
-  // Si la llegenda està visible (display no és "none"), la amaguem; si no, la mostrem
-  if (legendEl.style.display === 'none' || legendEl.style.display === '') {
-    // Si no està definit o està en 'none', la mostrem
-    legendEl.style.display = 'block';
-  } else {
-    // En cas contrari, la ocultem
-    legendEl.style.display = 'none';
+  const capaActiva = map.hasLayer(plujaneu_layer) ? llegendaPluja : 
+                    map.hasLayer(radar_layer) ? llegendaRadar : null;
+  if (capaActiva) {
+    capaActiva.style.display = capaActiva.style.display === 'none' ? 'block' : 'none';
   }
 });
 
-document.addEventListener('DOMContentLoaded', function () {
-  const legend = document.querySelector('.legend');
 
-  let isDragging = false;
-  let offsetX = 0;
-  let offsetY = 0;
+// Correcció dels listeners DOMContentLoaded i àmbits
+document.addEventListener('DOMContentLoaded', function() {
+  // Configuració inicial de visibilitat
+  const llegendaPluja = document.querySelector('.legend');
+  const llegendaRadar = document.querySelector('.llegenda');
+  
+  // Comprovació d'errors
+  if (!llegendaPluja || !llegendaRadar) {
+    console.error("No s'han trobat les llegendes al HTML!");
+    return;
+  }
 
-  // Quan es prem el botó del ratolí sobre la llegenda
-  legend.addEventListener('mousedown', function (e) {
-    isDragging = true;
-    // Obtenim la posició actual de la llegenda
-    const rect = legend.getBoundingClientRect();
-    // Establim la posició actual en left i top i eliminem bottom/right
-    legend.style.left = rect.left + 'px';
-    legend.style.top = rect.top + 'px';
-    legend.style.bottom = 'auto';
-    legend.style.right = 'auto';
-
-    // Calculem l'offset respecte al punt de clic
-    offsetX = e.clientX - rect.left;
-    offsetY = e.clientY - rect.top;
-    // Elimina transicions mentre es mou (opcional)
-    legend.style.transition = 'none';
-  });
-
-  // Moure la llegenda mentre es mou el ratolí
-  document.addEventListener('mousemove', function (e) {
-    if (isDragging) {
-      const newLeft = e.clientX - offsetX;
-      const newTop = e.clientY - offsetY;
-      legend.style.left = newLeft + 'px';
-      legend.style.top = newTop + 'px';
-    }
-  });
-
-  // Quan es deixa anar el botó del ratolí
-  document.addEventListener('mouseup', function () {
-    isDragging = false;
-  });
-
-  // Suport per a dispositius tàctils
-  legend.addEventListener('touchstart', function (e) {
-    isDragging = true;
-    const touch = e.touches[0];
-    const rect = legend.getBoundingClientRect();
-    // Establim la posició actual en left i top i eliminem bottom/right
-    legend.style.left = rect.left + 'px';
-    legend.style.top = rect.top + 'px';
-    legend.style.bottom = 'auto';
-    legend.style.right = 'auto';
-    
-    offsetX = touch.clientX - rect.left;
-    offsetY = touch.clientY - rect.top;
-  });
-
-  document.addEventListener('touchmove', function (e) {
-    if (isDragging) {
+  // Funció per fer elements arrossegables
+  function ferArrossegable(element) {
+    let isDragging = false;
+    let offsetX = 0;
+    let offsetY = 0;
+  
+    element.addEventListener('mousedown', function(e) {
+      isDragging = true;
+      const rect = element.getBoundingClientRect();
+      // Calcula l'offset respecte a la cantonada superior esquerra
+      offsetX = e.clientX - rect.left;
+      offsetY = e.clientY - rect.top;
+      // Elimina bottom/right inicials per permetre moure amb top/left
+      element.style.bottom = 'auto';
+      element.style.right = 'auto';
+      element.style.top = `${rect.top}px`;
+      element.style.left = `${rect.left}px`;
+    });
+  
+    document.addEventListener('mousemove', function(e) {
+      if (isDragging) {
+        element.style.top = `${e.clientY - offsetY}px`;
+        element.style.left = `${e.clientX - offsetX}px`;
+      }
+    });
+  
+    document.addEventListener('mouseup', () => isDragging = false);
+  
+    // Suport tàctil
+    element.addEventListener('touchstart', function(e) {
+      isDragging = true;
       const touch = e.touches[0];
-      const newLeft = touch.clientX - offsetX;
-      const newTop = touch.clientY - offsetY;
-      legend.style.left = newLeft + 'px';
-      legend.style.top = newTop + 'px';
-    }
-  });
+      const rect = element.getBoundingClientRect();
+      offsetX = touch.clientX - rect.left;
+      offsetY = touch.clientY - rect.top;
+    });
 
-  document.addEventListener('touchend', function () {
-    isDragging = false;
-  });
+    document.addEventListener('touchmove', function(e) {
+      if (isDragging) {
+        const touch = e.touches[0];
+        element.style.left = (touch.clientX - offsetX) + 'px';
+        element.style.top = (touch.clientY - offsetY) + 'px';
+      }
+    });
+
+    document.addEventListener('touchend', () => isDragging = false);
+  }
+
+  // Configurar arrossegament per a les llegendes
+  ferArrossegable(llegendaPluja);
+  ferArrossegable(llegendaRadar);
+  
+    // Inicialització
+    llegendaPluja.style.display = 'block';
+    llegendaRadar.style.display = 'none';
+    ferArrossegable(llegendaPluja);
+    ferArrossegable(llegendaRadar);
+
 });
 
+// Control automàtic de visibilitat per canvis de capa
+plujaneu_layer.on('add', () => {
+  llegendaPluja.style.display = 'block';
+  llegendaRadar.style.display = 'none';
+});
+
+plujaneu_layer.on('remove', () => {
+  llegendaPluja.style.display = 'none';
+});
+
+radar_layer.on('add', () => {
+  llegendaRadar.style.display = 'block';
+  llegendaPluja.style.display = 'none';
+});
+
+radar_layer.on('remove', () => {
+  llegendaRadar.style.display = 'none';
+})
