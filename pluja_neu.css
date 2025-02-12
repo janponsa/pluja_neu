@@ -11,10 +11,10 @@ body {
     position: fixed;
     overflow: visible;
     backface-visibility: hidden;
-    contain: none;
     top: 0;
     left: 0;
     background: #f0f0f0;
+    image-rendering: crisp-edges; /* Uniformitza renderitzat d'imatges */
 }
 
 img.leaflet-tile {
@@ -75,7 +75,7 @@ img.plujaneu_layer {
     position: absolute;
     bottom: 50px;
     right: 20px;
-    z-index: 1;
+    z-index: 1000; /* Assegura't que estigui per sobre del mapa */
     background-color: rgba(255, 255, 255, 0.85);
     border-radius: 8px;
     padding: 10px 15px;
@@ -84,8 +84,11 @@ img.plujaneu_layer {
     width: 90px;
     transform: translateZ(0);
     will-change: transform;
-    pointer-events: none;
+    /* Elimina pointer-events per permetre la interacció */
+    pointer-events: auto;
+    cursor: move; /* Opcional: mostra un cursor de moviment */
 }
+
 
 .legend-title {
     font-weight: bold;
@@ -104,19 +107,32 @@ img.plujaneu_layer {
     margin-bottom: 2px;
     display: flex;
     align-items: center;
-}
-
-.legend-labels span[style] {
+    gap: 0px; /* Controla l'espai entre quadrat de color i text */
+  }
+  
+  .legend-labels span[style] {
     width: 25px;
     height: 12px;
-    display: inline-block;
+    border: 1px solid #333 !important;
+    flex-shrink: 0; /* Evita compressió */
     margin-right: 5px;
-    border: 1px solid #666;
-}
-
-.label {
+  }
+  .legend-labels .label {
+    flex-grow: 1;
     white-space: nowrap;
-}
+  }
+
+  .legend-labels .label:empty {
+    display: none !important;
+    width: 0 !important;
+    height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+.label {
+    line-height: 1.2;
+    transform: translateY(1px); /* Ajusta alineació vertical */
+  }
 .leaflet-popup-content-wrapper {
     background: rgba(255, 255, 255, 0.8); /* Fons blanc amb 80% d'opacitat */
     color: #000; /* Color del text negre */
