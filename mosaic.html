@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="ca">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🔴 LIVE | Mosaic de Càmeres</title>
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; text-align: center; background: #000; color: white; margin: 0; }
+        .grid-container {
+            display: grid;
+            gap: 10px;
+            padding: 10px;
+            justify-content: center;
+        }
+        .player-container {
+            position: relative;
+            background: black;
+            width: 100%;
+            max-width: 100%;
+            border-radius: 8px;
+            overflow: hidden;
+            border: 2px solid #222;
+        }
+        video {
+            width: 100%;
+            height: auto;
+            background: black;
+            display: block;
+        }
+        .camera-name {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            font-size: 14px;
+            padding: 3px 8px;
+            border-radius: 5px;
+        }
+        .control-buttons {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            display: flex;
+            gap: 10px;
+            z-index: 1000;
+        }
+        button {
+            background: #ff4444;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            font-size: 14px;
+            cursor: pointer;
+            border-radius: 5px;
+            box-shadow: 0 4px 10px rgba(255, 68, 68, 0.5);
+        }
+        button:hover {
+            background: #cc0000;
+        }
+        .control-buttons button {
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .categories-container {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            z-index: 1001;
+        }
+        .category-menu {
+            background: #222;
+            padding: 5px;
+            border-radius: 5px;
+            display: none;
+            position: absolute;
+            bottom: 45px;
+            left: 0;
+            width: 140px;
+            text-align: left;
+            z-index: 1002;
+        }
+        .category-menu button {
+            display: block;
+            width: 100%;
+            text-align: left;
+            padding: 5px;
+            background: transparent;
+            border: none;
+            color: white;
+            font-size: 14px;
+        }
+        .category-menu button:hover {
+            background: #444;
+        }
+        .pagination-buttons {
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="categories-container">
+        <button class="category-button" onclick="toggleCategoryMenu()">📂</button>
+        <div class="category-menu" id="categoryMenu">
+            <button onclick="changeCategory('alta')">🏔️ Alta muntanya</button>
+            <button onclick="changeCategory('mitjana')">🌲 Cota mitjana</button>
+            <button onclick="changeCategory('baixa')">🌳 Cota baixa</button>
+            <button onclick="changeCategory('totes')">📡 Totes</button>
+        </div>
+    </div>
+
+    <div class="pagination-buttons" id="pagination"></div>
+
+    <div class="control-buttons">
+        <button id="capture-button">📸</button>
+        <button id="fullscreen-button">🔲</button>
+    </div>
+
+    <div class="grid-container" id="mosaic"></div>
+
+    <script>
+        const categories = {
+            alta: ["boi-taull-express", "refugiamitges", "picdelcubil", "peulla", "boi-taull-mulleres", 
+                "certascan", "refugimalniu", "portdelcomte1", "bonaigua", "comadevaca"],
+            mitjana: ["lles-estacio", "tuixentlavansa", "guils", "tavascan", "viros-estacio", 
+                "portdelcomte-debutants", "capdella", "refugirasos", "llescerdanya", "mirambell"],
+            baixa: ["llivia", "mollo", "bolvir", "ribes", "vilaller", "esterri",
+                "erill", "laseu", "verges", "pedraforca"]
+        };
+
+        let allCameras = [...categories.alta, ...categories.mitjana, ...categories.baixa];
+        let orderedCameras = [...allCameras]; // Aquí pots reordenar com vulguis
+
+        let currentCategory = "alta";
+        let currentPage = 1;
+        const camerasPerPage = 20;
+
+        function loadCameras() {
+            const mosaic = document.getElementById('mosaic');
+            mosaic.innerHTML = "";
+
+            let camerasToShow = (currentCategory === "totes") 
+                ? orderedCameras.slice((currentPage - 1) * camerasPerPage, currentPage * camerasPerPage)
+                : categories[currentCategory];
+
+            const numColumns = Math.min(5, Math.ceil(Math.sqrt(camerasToShow.length)));
+            mosaic.style.gridTemplateColumns = repeat(${numColumns}, 1fr);
+
+            camerasToShow.forEach(stream => {
+                const container = document.createElement('div');
+                container.className = "player-container";
+
+                const video = document.createElement('video');
+                video.setAttribute("playsinline", true);
+                video.setAttribute("autoplay", true);
+                video.setAttribute("muted", true);
+
+                const cameraName = document.createElement('div');
+                cameraName.className = "camera-name";
+                cameraName.innerText = stream.replace(/-/g, ' ').toUpperCase();
+
+                container.appendChild(video);
+                container.appendChild(cameraName);
+                mosaic.appendChild(container);
+
+                const videoSrc = https://api.projecte4estacions.com/live/${stream}/live.m3u8;
+                if (Hls.isSupported()) {
+                    const hls = new Hls();
+                    hls.loadSource(videoSrc);
+                    hls.attachMedia(video);
+                } else {
+                    video.src = videoSrc;
+                }
+            });
+
+            updatePagination();
+        }
+
+        function changeCategory(category) {
+            currentCategory = category;
+            currentPage = 1;
+            loadCameras();
+        }
+
+        function updatePagination() {
+            const pagination = document.getElementById("pagination");
+            pagination.innerHTML = "";
+
+            if (currentCategory !== "totes") return;
+
+            const totalPages = Math.ceil(orderedCameras.length / camerasPerPage);
+            for (let i = 1; i <= totalPages; i++) {
+                const btn = document.createElement("button");
+                btn.innerText = Pàg ${i};
+                btn.onclick = () => {
+                    currentPage = i;
+                    loadCameras();
+                };
+                pagination.appendChild(btn);
+            }
+        }
+
+        function toggleCategoryMenu() {
+            let menu = document.getElementById("categoryMenu");
+            menu.style.display = menu.style.display === "block" ? "none" : "block";
+        }
+
+        document.getElementById('fullscreen-button').addEventListener('click', () => {
+            document.documentElement.requestFullscreen();
+        });
+
+        document.getElementById('capture-button').addEventListener('click', () => {
+            html2canvas(document.getElementById('mosaic')).then(canvas => {
+                canvas.toBlob(blob => {
+                    navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]);
+                    alert("📸 Captura copiada al porta-retalls!");
+                });
+            });
+        });
+
+        loadCameras();
+    </script>
+</body>
+</html>
