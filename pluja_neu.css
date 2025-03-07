@@ -1,20 +1,25 @@
 body {
     margin: 0;
     padding: 0;
-    overflow: visible;
+    overflow: hidden;
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
 }
 
 #map {
-    height: 100vh;
-    width: 100vw;
+    height: 100%;
+    width: 100%;
     position: fixed;
-    overflow: visible;
+    overflow: hidden;
     backface-visibility: hidden;
     top: 0;
     left: 0;
     background: #f0f0f0;
     image-rendering: crisp-edges; /* Uniformitza renderitzat d'imatges */
+}
+
+body > *:not(#map):not(.leaflet-container):not(.leaflet-control-container) {
+  max-width: 100vw;
+  box-sizing: border-box;
 }
 
 img.leaflet-tile {
@@ -250,7 +255,7 @@ img.plujaneu_layer {
 #side-menu {
   position: fixed;
   top: 50%;
-  left: 0;
+  left: -5px;
   transform: translateY(-50%);
   display: flex;
   flex-direction: column;
