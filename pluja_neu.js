@@ -345,6 +345,18 @@ var municipisGeojson = L.geoJSON(municipisGeojson, {
 // Creem un layer group per als markers de càmeres
 const camerasLayer = L.layerGroup();
 
+// Definir la capa WMS de la xarxa hidrogràfica
+const xarxaHidrograficaLayer = L.tileLayer.wms("https://aplicacions.aca.gencat.cat/geoserver/gwc/service/wms?", {
+  layers: 'Xarxa_hidrografica', // Nom de la capa
+  format: 'image/png', // Format de la imatge
+  transparent: true, // Imatge transparent
+  version: '1.3.0', // Versió del WMS (1.3.0 utilitza CRS)
+  crs: L.CRS.EPSG3857, // Sistema de coordenades (EPSG:3857)
+  attribution: '© <a href="https://www.aca.gencat.cat/">ACA</a>', // Atribució
+  opacity: 0.7, // Opacitat de la capa
+  srs: 'EPSG:3857' // Paràmetre SRS per a compatibilitat amb versions antigues
+});
+
 // Afegim els controls de capes. Incloem la capa "Càmeres" com a overlay.
 L.control.layers(baseLayers, {
   "PoN sense corregir": plujaneu_layer,
@@ -352,7 +364,8 @@ L.control.layers(baseLayers, {
   "Zones de Perill d'Allaus": wmsLayer,
   "Live cams": camerasLayer,
   "Comarques": comarquesLayer,
-  "Municipis": municipisGeojson
+  "Municipis": municipisGeojson,
+  "Xarxa Hidrogràfica": xarxaHidrograficaLayer // Afegir la nova capa WMS
 }, {
   position: 'topright'
 }).addTo(map);
