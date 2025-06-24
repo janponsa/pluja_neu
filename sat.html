@@ -1,0 +1,728 @@
+<!DOCTYPE html>
+<html lang="ca">
+<head>
+  <meta charset="UTF-8">
+  <title>Animació satèl·lit ESSL amb Radar</title>
+  <script src="https://cdn.jsdelivr.net/npm/gif.js@0.2.0/dist/gif.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gif.js@0.2.0/dist/gif.worker.js"></script>
+
+  <style>
+    /* Estils existents (sense canvis significatius) */
+    body {
+      margin: 0;
+      background-color: #f0f2f5;
+      color: #333;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol';
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 25px;
+      box-sizing: border-box;
+      line-height: 1.6;
+    }
+
+    h1 {
+      margin: 25px 0 20px;
+      color: #1a1a2e;
+      font-size: 2.8em;
+      font-weight: 600;
+      letter-spacing: -0.02em;
+    }
+
+    #top-section {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 25px;
+        margin: 20px 0;
+        width: 100%;
+        max-width: 1100px;
+    }
+
+    #controls-group {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 15px;
+        align-items: center;
+        background-color: #fff;
+        padding: 15px 25px;
+        border-radius: 12px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+        flex-grow: 1;
+        justify-content: center;
+    }
+    
+    #datetime-controls {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 15px;
+        align-items: center;
+        margin-top: 10px;
+    }
+
+    label {
+      font-weight: 500;
+      color: #555;
+    }
+
+    select, button, input[type="date"], input[type="time"] {
+      padding: 10px 18px;
+      font-size: 1em;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.2s ease-in-out;
+      background-color: #fff;
+      color: #333;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+      font-family: inherit;
+    }
+
+    select {
+      appearance: none;
+      -webkit-appearance: none;
+      -moz-appearance: none;
+      background-image: url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23333%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13.2-6.5H18.6c-5.4%200-10.3%202.2-13.2%206.5-7%207-7%2018.5%200%2025.5l128%20128c3.5%203.5%208.1%205.2%2012.8%205.2s9.4-1.7%2012.8-5.2l128-128c7-7%207-18.5%200-25.5z%22%2F%3E%3C%2Fsvg%3E');
+      background-repeat: no-repeat;
+      background-position: right 12px center;
+      background-size: 10px auto;
+      padding-right: 35px;
+    }
+
+    input[type="date"], input[type="time"] { max-width: 180px; }
+    
+    #reset-datetime-btn {
+        background-color: #6c757d; color: white; border-color: #6c757d; font-weight: 500;
+    }
+    #reset-datetime-btn:hover { background-color: #5a6268; border-color: #545b62; }
+
+    #animation-buttons button, #channel-buttons-sidebar button, #generate-gif-btn {
+      background-color: #007aff; color: white; border-color: #007aff; font-weight: 500;
+    }
+    #animation-buttons button:hover, #channel-buttons-sidebar button:hover, #generate-gif-btn:hover {
+      background-color: #005bb5; border-color: #005bb5; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1); transform: translateY(-1px);
+    }
+    #animation-buttons button:active, #channel-buttons-sidebar button:active, #generate-gif-btn:active {
+      transform: translateY(0); box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+    }
+
+    #channel-buttons-sidebar button.active {
+        background-color: #004085; border-color: #004085; box-shadow: inset 0 2px 5px rgba(0,0,0,0.2); cursor: default;
+    }
+    #channel-buttons-sidebar button.active:hover { background-color: #004085; transform: none; }
+
+    input[type="checkbox"] {
+      -webkit-appearance: none; appearance: none; width: 20px; height: 20px; border: 1px solid #ccc; border-radius: 4px; background-color: #fff; cursor: pointer; position: relative; top: 4px; transition: background-color 0.2s, border-color 0.2s;
+    }
+    input[type="checkbox"]:checked { background-color: #007aff; border-color: #007aff; }
+    input[type="checkbox"]:checked::after {
+      content: '✔'; font-size: 14px; color: white; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    }
+
+    #timestamp { font-size: 1.15em; margin: 20px 0; color: #666; font-weight: 500; text-align: center; }
+
+    #main-content-area {
+        display: flex; gap: 25px; width: 100%; max-width: 1300px; align-items: flex-start; margin-top: 20px;
+    }
+
+    #image-and-controls {
+        display: flex; flex-direction: column; align-items: center; flex-grow: 1; min-width: 0;
+    }
+
+    #image-wrapper {
+        position: relative; width: 100%; max-width: 1000px; margin-bottom: 25px; border-radius: 10px; overflow: hidden; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08); background-color: #fff; display: flex; justify-content: center; align-items: center; min-height: 300px;
+    }
+
+    /* Z-INDEX: satImage (1), radarImage (2), overlayMap (3), no-image-message (4) */
+    #satImage, #radarImage {
+      display: block; position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: contain; border-radius: 8px;
+    }
+    #satImage { z-index: 1; cursor: zoom-in; transition: transform 0.3s ease; }
+    #satImage:hover { transform: scale(1.005); }
+    #radarImage { z-index: 2; pointer-events: none; /* NOU: El radar no intercepta clics */ }
+    #overlayMap {
+      display: block; width: 100%; height: auto; pointer-events: none; z-index: 3;
+    }
+
+    #no-image-message {
+        position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: #777; font-size: 1.5em; font-weight: 600; text-align: center; z-index: 4; background-color: rgba(255,255,255,0.7); padding: 15px 25px; border-radius: 8px; border: 1px solid #ddd; display: none; pointer-events: none;
+    }
+
+    #channel-buttons-sidebar {
+        display: grid; grid-template-columns: 1fr 1fr; gap: 8px; background-color: #fff; padding: 15px; border-radius: 10px; box-shadow: 0 3px 12px rgba(0,0,0,0.06); align-self: flex-start; max-height: unset; width: 380px; box-sizing: border-box;
+    }
+    #channel-buttons-sidebar button {
+        padding: 6px 10px; font-size: 0.8em; width: 100%; box-sizing: border-box; text-align: left; height: auto; white-space: normal; word-break: break-word;
+    }
+
+    #loading { margin-top: 20px; font-size: 1.1em; color: #555; text-align: center; padding: 10px; }
+
+    #progressBar {
+      width: 90vw; max-width: 700px; height: 8px; background: #e0e0e0; margin-top: 15px; border-radius: 4px; overflow: visible; box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.08); cursor: pointer; position: relative;
+    }
+    #progress { height: 100%; width: 0%; background: #007aff; transition: width 0.05s ease-out; border-radius: 4px; }
+    #progressBar::after {
+        content: ''; position: absolute; top: -4px; left: var(--thumb-left, 0%); width: 16px; height: 16px; background: #007aff; border-radius: 50%; border: 2px solid #fff; box-shadow: 0 1px 5px rgba(0,0,0,0.3); transform: translateX(-50%); cursor: grab; transition: left 0.05s ease-out;
+    }
+    #progressBar.dragging::after { cursor: grabbing; }
+
+    #gif-status { margin-top: 10px; font-size: 0.9em; color: #777; }
+    
+    .modal { display: none; position: fixed; z-index: 100; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0, 0, 0, 0.9); align-items: center; justify-content: center; flex-direction: column; }
+    .modal-content { margin: auto; display: block; max-width: 95%; max-height: 90vh; object-fit: contain; border-radius: 8px; box-shadow: 0 5px 25px rgba(0,0,0,0.4); }
+    .modal-close, .modal-nav { position: absolute; color: #f1f1f1; font-size: 35px; font-weight: bold; transition: 0.3s; cursor: pointer; padding: 10px; border-radius: 50%; background-color: rgba(0,0,0,0.3); line-height: 1; user-select: none; -webkit-user-select: none; }
+    .modal-close { top: 20px; right: 35px; font-size: 40px; }
+    .modal-close:hover, .modal-close:focus, .modal-nav:hover, .modal-nav:focus { color: #bbb; background-color: rgba(0,0,0,0.6); text-decoration: none; cursor: pointer; }
+    .modal-nav.prev { left: 20px; top: 50%; transform: translateY(-50%); }
+    .modal-nav.next { right: 20px; top: 50%; transform: translateY(-50%); }
+    .modal-timestamp { color: #f1f1f1; font-size: 1.2em; margin-top: 15px; text-align: center; font-weight: normal; }
+
+    /* Responsive adjustments (sense canvis) */
+    @media (max-width: 900px) {
+        #top-section, #main-content-area { flex-direction: column; gap: 15px; }
+        #main-content-area { align-items: center; }
+        #controls-group, #image-and-controls, #channel-buttons-sidebar, #datetime-controls { width: 100%; box-sizing: border-box; }
+        #datetime-controls { flex-direction: column; }
+        #set-datetime-btn, #reset-datetime-btn { width: 80%; max-width: 300px; }
+        #channel-buttons-sidebar { display: flex; flex-direction: row; flex-wrap: wrap; justify-content: center; align-self: center; max-height: unset; overflow-y: visible; padding: 10px; gap: 6px; grid-template-columns: unset; }
+        #channel-buttons-sidebar button { flex-grow: 1; padding: 7px 10px; font-size: 0.85em; min-width: 80px; max-width: 160px; text-align: center; }
+        #animation-buttons { width: 100%; box-sizing: border-box; }
+        select, #animation-buttons button, input[type="date"], input[type="time"] { width: 80%; max-width: 300px; margin: 0 auto; box-sizing: border-box; }
+    }
+    @media (max-width: 768px) {
+      body { padding: 15px; }
+      h1 { font-size: 2.2em; margin-top: 15px; }
+      #image-wrapper { width: 100%; border-radius: 5px; min-height: 200px; }
+      #progressBar { width: 95vw; }
+      .modal-close { top: 15px; right: 15px; font-size: 30px; }
+      .modal-nav { font-size: 30px; left: 10px; right: 10px; }
+      .modal-timestamp { font-size: 1em; }
+    }
+  </style>
+</head>
+<body>
+
+<h1>Animació satèl·lit i Radar</h1>
+
+<div id="top-section">
+    <div id="controls-group">
+        <label for="period">Període:</label>
+        <select id="period">
+            <option value="2">2 hores</option>
+            <option value="6">6 hores</option>
+            <option value="12">12 hores</option>
+            <option value="24" selected>24 hores</option>
+            <option value="48">2 dies</option>
+            <option value="72">3 dies</option>
+        </select>
+
+        <label for="speed">Velocitat:</label>
+        <select id="speed">
+            <option value="500">Lenta</option>
+            <option value="100" selected>Normal</option>
+            <option value="60">Ràpida</option>
+        </select>
+
+        <label for="region">Regió:</label>
+        <select id="region">
+            <option value="EURO" selected>EURO</option>
+            <option value="Iberia">Iberia</option>
+        </select>
+
+        <label for="radar-toggle">Mostrar Radar:</label>
+        <input type="checkbox" id="radar-toggle">
+
+        <label for="loop">Loop:</label>
+        <input type="checkbox" id="loop" checked>
+
+        <div id="datetime-controls">
+            <label for="date-selector">Data (UTC):</label>
+            <input type="date" id="date-selector">
+            <label for="hour-selector">Hora (UTC):</label>
+            <select id="hour-selector"></select>
+            <label for="minute-selector">Minuts (UTC):</label>
+            <select id="minute-selector"></select>
+            <button id="set-datetime-btn">Establir Data/Hora</button>
+            <button id="reset-datetime-btn">Ara Mateix</button>
+        </div>
+    </div>
+</div>
+
+<div id="main-content-area">
+    <div id="image-and-controls">
+        <div id="animation-buttons">
+            <button onclick="goToFirst()">⏮ Primera</button>
+            <button onclick="previous()">◀ Enrere</button>
+            <button onclick="toggleAnimation()">▶ Reproduir / Pausar</button>
+            <button onclick="next()">▶ Endavant</button>
+            <button onclick="goToLast()">⏭ Última</button>
+        </div>
+
+        <div id="timestamp"></div>
+
+        <div id="image-wrapper">
+            <img id="overlayMap" src="https://weather.essl.org/wx/images/models/icon-eu/foregroundmap_EURO.png" alt="Mapes">
+            <img id="radarImage" src="" alt="Imatge radar">
+            <img id="satImage" src="" alt="Imatge satèl·lit">
+            <div id="no-image-message">Imatge no disponible</div>
+        </div>
+
+        <div id="progressBar"><div id="progress"></div></div>
+        <div id="loading">Cercant la darrera imatge disponible...</div>
+        
+        <button id="generate-gif-btn">Generar GIF</button>
+        <div id="gif-status"></div>
+    </div>
+
+    <div id="channel-buttons-sidebar">
+        <button id="channel-FCIVIS06" data-channel="_FCIvis06.jpg" class="active">FCIvis06 (Visible)</button>
+        <button id="channel-FCIVIS04" data-channel="_FCIvis04.jpg">FCIvis04</button>
+        <button id="channel-FCIVIS05" data-channel="_FCIvis05.jpg">FCIvis05</button>
+        <button id="channel-FCIVIS08" data-channel="_FCIvis08.jpg">FCIvis08</button>
+        <button id="channel-FCIVIS09" data-channel="_FCIvis09.jpg">FCIvis09</button>
+        <button id="channel-FCITRUECOLOR" data-channel="_FCItruecolor.jpg">FCItruecolor</button>
+        <button id="channel-FCIIRSW" data-channel="_FCIirsandwich.jpg">FCIirsandwich</button>
+        <button id="channel-FCINIR13" data-channel="_FCInir13.jpg">FCInir13</button>
+        <button id="channel-FCINIR16" data-channel="_FCInir16.jpg">FCInir16</button>
+        <button id="channel-FCINIR22" data-channel="_FCInir22.jpg">FCInir22</button>
+        <button id="channel-FCIIR38" data-channel="_FCIir38.jpg">FCIir38</button>
+        <button id="channel-FCIWV63" data-channel="_FCIwv63.jpg">FCIwv63</button>
+        <button id="channel-FCIWV73" data-channel="_FCIwv73.jpg">FCIwv73</button>
+        <button id="channel-FCIIR87" data-channel="_FCIir87.jpg">FCIir87</button>
+        <button id="channel-FCIIR97" data-channel="_FCIir97.jpg">FCIir97</button>
+        <button id="channel-FCIIR105" data-channel="_FCIir105.jpg">FCIir105</button>
+        <button id="channel-FCIIR123" data-channel="_FCIir123.jpg">FCIir123</button>
+        <button id="channel-FCIIR133" data-channel="_FCIir133.jpg">FCIir133</button>
+        <button id="channel-FCIHRVCLOUDS" data-channel="_FCIhrvclouds.jpg">FCIhrvclouds</button>
+        <button id="channel-FCAIRMASS" data-channel="_FCIairmass.jpg">FCIairmass</button>
+        <button id="channel-FCICONVECTION" data-channel="_FCIconvection.jpg">FCIconvection</button>
+        <button id="channel-FCIDUST" data-channel="_FCIdust.jpg">FCIdust</button>
+        <button id="channel-FCINIGHTFOG" data-channel="_FCInightfog.jpg">FCInightfog</button>
+        <button id="channel-FCIYDPHASE" data-channel="_FCIcloudphase.jpg">FCIcloudphase</button>
+        <button id="channel-FCIYDTYPE" data-channel="_FCIcloudtype.jpg">FCIcloudtype</button>
+        <button id="channel-FCICOLORIZEDIRCLOUDS" data-channel="_FCIcolorizedirclouds.jpg">FCIcolorizedirclouds</button>
+        <button id="channel-FCIESSLMOISTURE2" data-channel="_FCIesslmoisture2.jpg">FCIesslmoisture2</button>
+        <button id="channel-FCIESSLMOISTURE6" data-channel="_FCIesslmoisture6.jpg">FCIesslmoisture6</button>
+    </div>
+</div>
+
+<div id="imageModal" class="modal">
+  <span class="modal-close" onclick="closeModal()">&times;</span>
+  <div style="display: flex; flex-direction: column; align-items: center;">
+    <img class="modal-content" id="modalImage">
+    <div class="modal-timestamp" id="modalTimestamp"></div>
+  </div>
+  <a class="modal-nav prev" onclick="modalPrev()">&#10094;</a>
+  <a class="modal-nav next" onclick="modalNext()">&#10095;</a>
+</div>
+
+<script>
+  // --- NOU: Declaració d'elements del DOM ---
+  const satImageElement = document.getElementById("satImage");
+  const radarImageElement = document.getElementById("radarImage"); // NOU
+  const overlayElement = document.getElementById("overlayMap");
+  const noImageMessageDiv = document.getElementById("no-image-message");
+  const timestampElement = document.getElementById("timestamp");
+  const loadingDiv = document.getElementById("loading");
+  const periodSelector = document.getElementById("period");
+  const speedSelector = document.getElementById("speed");
+  const regionSelector = document.getElementById("region");
+  const loopCheckbox = document.getElementById("loop");
+  const radarToggle = document.getElementById("radar-toggle"); // NOU
+  const progressBar = document.getElementById("progressBar");
+  const progressBarFill = document.getElementById("progress");
+  const channelButtonsSidebar = document.getElementById("channel-buttons-sidebar"); 
+  const dateSelector = document.getElementById("date-selector");
+  const hourSelector = document.getElementById("hour-selector");
+  const minuteSelector = document.getElementById("minute-selector");
+  const setDatetimeButton = document.getElementById("set-datetime-btn");
+  const resetDatetimeButton = document.getElementById("reset-datetime-btn");
+  const generateGifBtn = document.getElementById("generate-gif-btn");
+  const gifStatusDiv = document.getElementById("gif-status");
+  const imageModal = document.getElementById("imageModal");
+  const modalImage = document.getElementById("modalImage");
+  const modalTimestamp = document.getElementById("modalTimestamp");
+
+  // --- NOU: Variables d'estat ---
+  let images = [];
+  let preloadedSat = []; // NOU: Array per a satèl·lit
+  let preloadedRadar = []; // NOU: Array per a radar
+  let index = 0;
+  let interval = null;
+  let playing = false;
+  let autoUpdateInterval = null;
+  let isDraggingProgressBar = false;
+  let currentChannelSuffix = "_FCIvis06.jpg";
+  let currentRegion = "EURO";
+  let lastDisplayedTimestamp = null;
+  let selectedDateTimeUTC = null;
+
+  const AUTO_UPDATE_CHECK_INTERVAL = 5 * 60 * 1000; // 5 minuts
+  const SAT_TIME_STEP = 10; // NOU: El satèl·lit va cada 10 minuts
+  const RADAR_TIME_STEP = 5; // NOU: El radar va cada 5 minuts
+
+
+  // --- NOU: Generació de selectors de minuts i hores ---
+  for (let i = 0; i < 24; i++) {
+    hourSelector.add(new Option(String(i).padStart(2, '0'), String(i).padStart(2, '0')));
+  }
+  for (let i = 0; i < 60; i += RADAR_TIME_STEP) { // Ara va de 5 en 5
+    minuteSelector.add(new Option(String(i).padStart(2, '0'), String(i).padStart(2, '0')));
+  }
+
+  function pad(n) {
+    return String(n).padStart(2, '0');
+  }
+
+  // --- NOU: Funcions per construir URLs ---
+  function buildSatURL(date, channelSuffix, region) {
+    const y = date.getUTCFullYear();
+    const m = pad(date.getUTCMonth() + 1);
+    const d = pad(date.getUTCDate());
+    const H = pad(date.getUTCHours());
+    const M = pad(date.getUTCMinutes());
+    return {
+      url: `https://weather.essl.org/wx/images/fci/${y}/${m}/${d}/${region}/${y}${m}${d}${H}${M}${channelSuffix}`,
+      label: `${d}/${m}/${y} ${H}:${M} UTC`,
+      timestamp: date.getTime()
+    };
+  }
+  
+  function buildRadarURL(date, region) {
+    const y = date.getUTCFullYear();
+    const m = pad(date.getUTCMonth() + 1);
+    const d = pad(date.getUTCDate());
+    const H = pad(date.getUTCHours());
+    const M = pad(date.getUTCMinutes());
+    const YYYYMMDD = `${y}${m}${d}`;
+    return {
+      url: `https://weather.essl.org/wx/images/opera/${YYYYMMDD}/${region}/${YYYYMMDD}${H}${M}_OPERA.png`,
+      label: `${d}/${m}/${y} ${H}:${M} UTC`,
+      timestamp: date.getTime()
+    };
+  }
+
+  function updateOverlayMap(region) {
+    overlayElement.src = region === "Iberia"
+      ? "http://weather.essl.org/wx/images/models/icon-eu/hicontrastmap_Iberia.png"
+      : "https://weather.essl.org/wx/images/models/icon-eu/foregroundmap_EURO.png";
+  }
+
+  async function checkImage(url) {
+    return new Promise(resolve => {
+      const img = new Image();
+      img.src = url + '?' + Date.now();
+      img.onload = () => resolve(true);
+      img.onerror = () => resolve(false);
+    });
+  }
+
+  // --- Lògica actualitzada per trobar la imatge més recent ---
+  async function findLastAvailableImage(startFromDate = null) {
+    loadingDiv.textContent = "Cercant la darrera imatge disponible...";
+    let candidate;
+
+    if (startFromDate) {
+      candidate = new Date(startFromDate.getTime());
+    } else {
+      const utcNow = new Date();
+      utcNow.setUTCMilliseconds(0);
+      candidate = new Date(utcNow.getTime() - 15 * 60 * 1000);
+    }
+    
+    // Busca en intervals de 5 minuts per ser més precís
+    candidate.setUTCMinutes(Math.floor(candidate.getUTCMinutes() / RADAR_TIME_STEP) * RADAR_TIME_STEP);
+    candidate.setUTCSeconds(0);
+
+    for (let i = 0; i < (72 * 60 / RADAR_TIME_STEP); i++) { // Busca fins a 3 dies enrere
+      const satMinutes = candidate.getUTCMinutes();
+      if (satMinutes % SAT_TIME_STEP === 0) { // Només comprova imatges de satèl·lit en intervals de 10 min
+        const { url } = buildSatURL(candidate, currentChannelSuffix, currentRegion);
+        const exists = await checkImage(url);
+        if (exists) {
+          return candidate;
+        }
+      }
+      candidate.setTime(candidate.getTime() - RADAR_TIME_STEP * 60 * 1000);
+    }
+
+    throw new Error("No s'ha trobat cap imatge disponible en el període seleccionat.");
+  }
+  
+  // --- NOU: Lògica de generació de llista d'imatges ---
+  function generateImageList(latestDate, hoursBack, channelSuffix, region) {
+    const list = [];
+    const steps = (hoursBack * 60) / RADAR_TIME_STEP; // Steps de 5 minuts
+
+    for (let i = 0; i < steps; i++) {
+      const t = new Date(latestDate.getTime() - (steps - 1 - i) * RADAR_TIME_STEP * 60 * 1000);
+      
+      const satTime = new Date(t.getTime());
+      satTime.setUTCMinutes(Math.floor(t.getUTCMinutes() / SAT_TIME_STEP) * SAT_TIME_STEP); // Arrodoneix al múltiple de 10 anterior
+      
+      const satInfo = buildSatURL(satTime, channelSuffix, region);
+      const radarInfo = buildRadarURL(t, region);
+
+      list.push({ sat: satInfo, radar: radarInfo });
+    }
+    return list;
+  }
+
+  // --- NOU: Lògica de pre-càrrega d'imatges ---
+  function preloadImages(list, callback) {
+    let loaded = 0;
+    preloadedSat = [];
+    preloadedRadar = [];
+    const totalImages = radarToggle.checked ? list.length * 2 : list.length;
+    loadingDiv.textContent = `Carregant ${list.length} imatges...`;
+    
+    progressBarFill.style.width = "0%";
+    progressBar.style.setProperty('--thumb-left', '0%');
+
+    if (list.length === 0) {
+      if (callback) callback();
+      return;
+    }
+
+    const promises = list.map((item, i) => {
+      const satPromise = new Promise(resolve => {
+        const img = new Image();
+        img.src = item.sat.url;
+        img.onload = () => { preloadedSat[i] = img; loaded++; resolve(); };
+        img.onerror = () => { preloadedSat[i] = null; loaded++; resolve(); };
+      });
+      
+      let radarPromise = Promise.resolve();
+      if (radarToggle.checked) {
+        radarPromise = new Promise(resolve => {
+          const img = new Image();
+          img.src = item.radar.url;
+          img.onload = () => { preloadedRadar[i] = img; loaded++; resolve(); };
+          img.onerror = () => { preloadedRadar[i] = null; loaded++; resolve(); };
+        });
+      }
+
+      // Actualitzar la barra de progrés dins de cada promesa no és eficient, fem-ho fora
+      return Promise.all([satPromise, radarPromise]).then(() => {
+          progressBarFill.style.width = `${((i + 1) / list.length) * 100}%`;
+          if (!isDraggingProgressBar) {
+              progressBar.style.setProperty('--thumb-left', `${((i + 1) / list.length) * 100}%`);
+          }
+      });
+    });
+
+    Promise.all(promises).then(() => {
+        loadingDiv.style.display = "none";
+        if (callback) callback();
+    });
+  }
+
+  // --- NOU: Lògica per actualitzar les imatges a la pantalla ---
+  function updateImage() {
+    if (index < 0 || index >= images.length) return;
+
+    const currentImageSet = images[index];
+    const satLoaded = preloadedSat[index];
+    const radarLoaded = preloadedRadar[index];
+
+    // Actualitzar imatge de satèl·lit
+    if (satLoaded && satLoaded.src) {
+      satImageElement.src = satLoaded.src;
+      satImageElement.style.display = 'block';
+      noImageMessageDiv.style.display = 'none';
+    } else {
+      satImageElement.src = '';
+      satImageElement.style.display = 'none';
+      noImageMessageDiv.style.display = 'block';
+    }
+
+    // Actualitzar imatge de radar
+    if (radarToggle.checked && radarLoaded && radarLoaded.src) {
+        radarImageElement.src = radarLoaded.src;
+        radarImageElement.style.display = 'block';
+    } else {
+        radarImageElement.style.display = 'none';
+    }
+
+    timestampElement.textContent = currentImageSet.radar.label; // El temps principal és el del radar (5 min)
+    lastDisplayedTimestamp = currentImageSet.radar.timestamp;
+
+    const progressPercent = (images.length > 1) ? (index / (images.length - 1)) * 100 : 0;
+    progressBarFill.style.width = `${progressPercent}%`;
+    progressBar.style.setProperty('--thumb-left', `${progressPercent}%`);
+  }
+
+  function previous() { index = (index - 1 + images.length) % images.length; updateImage(); }
+  function next() {
+    if (index < images.length - 1) {
+      index++; updateImage();
+    } else if (loopCheckbox.checked) {
+      index = 0; updateImage();
+    } else {
+      clearInterval(interval); playing = false;
+    }
+  }
+  function goToFirst() { index = 0; updateImage(); if (playing) { toggleAnimation(); toggleAnimation(); } }
+  function goToLast() { index = images.length - 1; updateImage(); if (playing) { clearInterval(interval); playing = false; } }
+
+  function toggleAnimation() {
+    if (playing) {
+      clearInterval(interval);
+      playing = false;
+    } else {
+      interval = setInterval(next, parseInt(speedSelector.value));
+      playing = true;
+    }
+  }
+
+  async function reload(isAutoUpdate = false, isChannelOrRegionChange = false, isInitialLoad = false, isManualDatetimeChange = false) { 
+    clearInterval(interval);
+    playing = false;
+
+    loadingDiv.style.display = "block";
+    noImageMessageDiv.style.display = "none";
+    progressBarFill.style.width = "0%";
+    progressBar.style.setProperty('--thumb-left', '0%');
+    let targetTimestamp = lastDisplayedTimestamp;
+
+    if (isChannelOrRegionChange) { updateOverlayMap(currentRegion); }
+
+    try {
+      const hoursBack = parseInt(periodSelector.value);
+      let latestAvailableDate;
+
+      if (selectedDateTimeUTC !== null) {
+          latestAvailableDate = await findLastAvailableImage(selectedDateTimeUTC);
+      } else {
+          latestAvailableDate = await findLastAvailableImage();
+          if (!isAutoUpdate) setInitialDateTimeSelectors();
+      }
+
+      images = generateImageList(latestAvailableDate, hoursBack, currentChannelSuffix, currentRegion);
+      
+      preloadImages(images, () => {
+        let newIndex = images.length - 1;
+        if ((isChannelOrRegionChange || isManualDatetimeChange) && targetTimestamp !== null) {
+            let closestIndex = 0;
+            let minDiff = Infinity;
+            images.forEach((img, i) => {
+                const diff = Math.abs(img.radar.timestamp - targetTimestamp);
+                if (diff < minDiff) {
+                    minDiff = diff;
+                    closestIndex = i;
+                }
+            });
+            newIndex = closestIndex;
+        }
+        
+        index = newIndex;
+        updateImage();
+      });
+
+    } catch (e) {
+      loadingDiv.textContent = `Error: ${e.message}`;
+      console.error(e);
+      images = []; preloadedSat = []; preloadedRadar = [];
+      satImageElement.src = ''; radarImageElement.src = '';
+      noImageMessageDiv.textContent = `Error: ${e.message}`;
+      noImageMessageDiv.style.display = "block";
+      timestampElement.textContent = '';
+    }
+  }
+  
+  function setInitialDateTimeSelectors() {
+    const now = new Date();
+    dateSelector.value = now.toISOString().split('T')[0];
+    hourSelector.value = pad(now.getUTCHours());
+    minuteSelector.value = pad(Math.floor(now.getUTCMinutes() / RADAR_TIME_STEP) * RADAR_TIME_STEP);
+  }
+
+  // --- NOU: Event listeners ---
+  periodSelector.addEventListener("change", () => reload(false, false, false, false));
+  speedSelector.addEventListener("change", () => { if (playing) { toggleAnimation(); toggleAnimation(); } });
+  loopCheckbox.addEventListener("change", () => {
+    if (playing && !loopCheckbox.checked && index === images.length - 1) { clearInterval(interval); playing = false; }
+  });
+  regionSelector.addEventListener("change", () => { currentRegion = regionSelector.value; reload(false, true, false, false); });
+  // NOU: El canvi de radar implica recarregar per pre-carregar les imatges
+  radarToggle.addEventListener("change", () => reload(false, true, false, false));
+
+  setDatetimeButton.addEventListener("click", () => {
+    const selectedDate = dateSelector.value;
+    const selectedHour = hourSelector.value;
+    const selectedMinute = minuteSelector.value;
+
+    if (selectedDate && selectedHour && selectedMinute) {
+        const [year, month, day] = selectedDate.split('-').map(Number);
+        selectedDateTimeUTC = new Date(Date.UTC(year, month - 1, day, parseInt(selectedHour), parseInt(selectedMinute)));
+        reload(false, false, false, true);
+    } else {
+        alert("Si us plau, selecciona una data i hora completes.");
+    }
+  });
+
+  resetDatetimeButton.addEventListener("click", () => {
+    selectedDateTimeUTC = null;
+    setInitialDateTimeSelectors();
+    reload(false, false, false, false);
+  });
+
+  channelButtonsSidebar.addEventListener('click', (event) => {
+    const target = event.target;
+    if (target.tagName === 'BUTTON' && target.dataset.channel) {
+      document.querySelectorAll('#channel-buttons-sidebar button').forEach(btn => btn.classList.remove('active'));
+      target.classList.add('active');
+      currentChannelSuffix = target.dataset.channel;
+      reload(false, true, false, false);
+    }
+  });
+  
+  // Progress Bar Dragging (adaptat)
+  progressBar.addEventListener('mousedown', (e) => { isDraggingProgressBar = true; progressBar.classList.add('dragging'); updateProgressFromMouseEvent(e); });
+  document.addEventListener('mousemove', (e) => { if (isDraggingProgressBar) { updateProgressFromMouseEvent(e); } });
+  document.addEventListener('mouseup', () => {
+    if (isDraggingProgressBar) {
+      isDraggingProgressBar = false;
+      progressBar.classList.remove('dragging');
+      if (images.length > 0) { updateImage(); }
+    }
+  });
+
+  function updateProgressFromMouseEvent(e) {
+    const rect = progressBar.getBoundingClientRect();
+    let x = Math.max(0, Math.min(e.clientX - rect.left, rect.width));
+    const percent = (x / rect.width) * 100;
+    
+    if (images.length > 0) {
+      index = Math.round((percent / 100) * (images.length - 1));
+      updateImage(); // Actualitza la imatge mentre arrosseguem
+    }
+  }
+
+  // Modal (adaptat)
+  satImageElement.addEventListener('click', () => {
+    if (images.length > 0) {
+      modalImage.src = satImageElement.src;
+      modalTimestamp.textContent = timestampElement.textContent;
+      imageModal.style.display = "flex";
+    }
+  });
+  function closeModal() { imageModal.style.display = "none"; }
+  function modalNext() { if (images.length > 0) { index = (index + 1) % images.length; updateImage(); modalImage.src = satImageElement.src; modalTimestamp.textContent = timestampElement.textContent; } }
+  function modalPrev() { if (images.length > 0) { index = (index - 1 + images.length) % images.length; updateImage(); modalImage.src = satImageElement.src; modalTimestamp.textContent = timestampElement.textContent; } }
+  
+  // GIF (no implementat amb radar per complexitat)
+  generateGifBtn.addEventListener('click', () => {
+      gifStatusDiv.textContent = "La generació de GIF amb radar no està implementada.";
+      alert("La generació de GIF amb la capa de radar encara no està disponible.");
+  });
+  
+  // Càrrega inicial
+  setInitialDateTimeSelectors();
+  reload(false, true, true, false);
+  autoUpdateInterval = setInterval(() => reload(true, false, false, false), AUTO_UPDATE_CHECK_INTERVAL);
+
+</script>
+
+</body>
+</html>
