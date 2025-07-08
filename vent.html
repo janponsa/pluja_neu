@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="ca">
+<head>
+  <meta charset="utf-8">
+  <title>Test Interpolació Vent (SMC + AEMET Sincronitzat) - v4 Log</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/danwild/leaflet-velocity/dist/leaflet-velocity.min.css" />
+  <style>
+    html, body, #map {
+      height: 100%;
+      margin: 0;
+      padding: 0;
+    }
+    #toggle-arrows-btn {
+      position: absolute;
+      top: 10px;
+      left: 60px;
+      z-index: 1000;
+      padding: 8px;
+      background-color: white;
+      border: 2px solid rgba(0,0,0,0.2);
+      border-radius: 4px;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <div id="map"></div>
+  <button id="toggle-arrows-btn">Amaga Fletxes</button>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/leaflet-polylinedecorator@1.6.0/dist/leaflet.polylineDecorator.js"></script>
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/danwild/leaflet-velocity/dist/leaflet-velocity.min.js"></script>
+
+  <script>
+    const map = L.map('map').setView([41.8, 1.6], 8);
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+        attribution: '&copy; OpenStreetMap contributors &copy; CARTO'
+    }).addTo(map);
+
+    let windArrowsLayer = L.layerGroup();
+    let areArrowsVisible = true;
+
+    const latitudep = Array.from({length: 25}, (_, i) => 42.9 - i * 0.1);
+    const longitudep = Array.from({length: 37}, (_, i) => 0.1 + i * 0.1);
+
+    function getCurrentUtcDateTime(offsetMinutes = 0) {
+        const now = new Date(new Date().getTime() - offsetMinutes * 60 * 1000);
+        const yyyy = now.getUTCFullYear();
+        const mm = String(now.getUTCMonth() + 1).padStart(2, '0');
+        const dd = String(now.getUTCDate()).padStart(2, '0');
+        const hh = String(now.getUTCHours()).padStart(2, '0');
+        const mi = String(Math.floor(now.getUTCMinutes() / 30) * 30).padStart(2, '0');
+        return `${yyyy}-${mm}-${dd}T${hh}:${mi}:00.000`;
+    }
+
+    async function loadSmcData() {
+        return new Promise((resolve) => {
+            const urlMetadades = "https://analisi.transparenciacatalunya.cat/resource/yqwd-vj5e.json?$query=SELECT%0A%20%20%60codi_estacio%60%2C%0A%20%20%60latitud%60%2C%0A%20%20%60longitud%60%0AWHERE%20caseless_one_of(%60nom_estat_ema%60%2C%20%22Operativa%22)";
+            
+            $.getJSON(urlMetadades, (metadata) => {
+                const estacionsMap = {};
+                metadata.forEach(est => {
+                    estacionsMap[est.codi_estacio] = {
+                        lat: parseFloat(est.latitud),
+                        lon: parseFloat(est.longitud)
+                    };
+                });
+                loadSmcWindDataWithFallback(0, estacionsMap, resolve);
+            }).fail(() => {
+                console.error("No s'han pogut carregar les metadades de les estacions de l'SMC.");
+                resolve({ data: [], timestamp: null });
+            });
+        });
+    }
+
+    function loadSmcWindDataWithFallback(offsetMinutes, estacionsMap, resolve) {
+        const timestamp = getCurrentUtcDateTime(offsetMinutes);
+        const variableCodes = [30, 31, 46, 47, 48, 49]; 
+        
+        const requests = variableCodes.map(code => {
+            const url = `https://analisi.transparenciacatalunya.cat/resource/nzvn-apee.json?data_lectura=${timestamp}&codi_variable=${code}`;
+            return $.getJSON(url).catch(() => null);
+        });
+
+        $.when(...requests).done((...responses) => {
+            const datasets = responses.map(r => r ? r[0] : null);
+
+            if (datasets.some(d => d && d.length > 0)) {
+                const smcWindData = processSmcData(datasets, estacionsMap);
+                console.log(`Dades de l'SMC carregades per a l'hora: ${timestamp}`);
+                resolve({ data: smcWindData, timestamp: timestamp });
+            } else if (offsetMinutes <= 360) {
+                console.log(`No s'han trobat dades de l'SMC per a ${timestamp}. Reintentant 30 minuts abans...`);
+                setTimeout(() => loadSmcWindDataWithFallback(offsetMinutes + 30, estacionsMap, resolve), 2000);
+            } else {
+                console.error("No s'han pogut carregar les dades de vent de l'SMC després de múltiples intents.");
+                resolve({ data: [], timestamp: null });
+            }
+        });
+    }
+
+    function processSmcData(datasets, estacionsMap) {
+        const [wind10m, dir10m, wind2m, dir2m, wind6m, dir6m] = datasets;
+        const allWind = [wind10m, wind6m, wind2m];
+        const allDir = [dir10m, dir6m, dir2m];
+        
+        const processedStations = new Set();
+        const smcWindData = [];
+
+        allWind.forEach((windBlock, idx) => {
+            if (!windBlock) return;
+            const dirBlock = allDir[idx];
+            if (!dirBlock) return;
+
+            const dirMap = new Map(dirBlock.map(d => [d.codi_estacio, parseFloat(d.valor_lectura)]));
+
+            windBlock.forEach(w => {
+                const stationCode = w.codi_estacio;
+                if (processedStations.has(stationCode) || !dirMap.has(stationCode)) return;
+
+                const estacioInfo = estacionsMap[stationCode];
+                if (estacioInfo) {
+                    const speed = parseFloat(w.valor_lectura);
+                    const direction = dirMap.get(stationCode);
+                    
+                    const angleRad = (270 - direction) * (Math.PI / 180);
+                    smcWindData.push({
+                        lat: estacioInfo.lat,
+                        lon: estacioInfo.lon,
+                        u: speed * Math.cos(angleRad),
+                        v: speed * Math.sin(angleRad)
+                    });
+                    processedStations.add(stationCode);
+                }
+            });
+        });
+        return smcWindData;
+    }
+
+    async function loadAemetData() {
+        const apiKey = "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJqYW5wb25zYUBnbWFpbC5jb20iLCJqdGkiOiI1OTZhMjQ3MC0zODg2LTRkNzktOTE3OC01NTA5MDI5Y2MwNjAiLCJpc3MiOiJBRU1FVCIsImlhdCI6MTUyMTA0OTg0MywidXNlcklkIjoiNTk2YTI0NzAtMzg4Ni00ZDc5LTkxNzgtNTUwOTAyOWNjMDYwIiwicm9sZSI6IiJ9.rmsBWXYts5VUBXKlErX7i9W0e3Uz-sws33bgRcIvlug";
+        const urlInicial = 'https://opendata.aemet.es/opendata/api/observacion/convencional/todas';
+        try {
+            const responseInicial = await fetch(urlInicial, { headers: { 'api_key': apiKey, 'accept': 'application/json' } });
+            const info = await responseInicial.json();
+            if (info.estado === 200) {
+                const responseDades = await fetch(info.datos);
+                const dadesBrutes = await responseDades.json();
+                return processAemetData(dadesBrutes);
+            } else {
+                console.error("Error a la primera petició AEMET:", info.descripcion);
+                return { data: [], timestamp: null };
+            }
+        } catch (error) {
+            console.error("Error fatal descarregant dades d'AEMET:", error);
+            return { data: [], timestamp: null };
+        }
+    }
+
+    function processAemetData(data) {
+        const BBOX_CAT = { minLat: 40.5, maxLat: 42.9, minLon: 0.1,  maxLon: 3.3 };
+        const estacionsCat = data.filter(d => d.lat >= BBOX_CAT.minLat && d.lat <= BBOX_CAT.maxLat && d.lon >= BBOX_CAT.minLon && d.lon <= BBOX_CAT.maxLon);
+        if (estacionsCat.length === 0) return { data: [], timestamp: null };
+        const ultimaData = estacionsCat.reduce((max, d) => d.fint > max ? d.fint : max, estacionsCat[0].fint);
+        const dadesFinals = estacionsCat.filter(d => d.fint === ultimaData);
+        const aemetWindData = [];
+        dadesFinals.forEach(estacio => {
+            if (typeof estacio.vv !== 'undefined' && typeof estacio.dv !== 'undefined') {
+                const speed = estacio.vv;
+                const direction = estacio.dv;
+                const angleRad = (270 - direction) * (Math.PI / 180);
+                aemetWindData.push({ lat: estacio.lat, lon: estacio.lon, u: speed * Math.cos(angleRad), v: speed * Math.sin(angleRad) });
+            }
+        });
+        return { data: aemetWindData, timestamp: ultimaData };
+    }
+
+    function displayCombinedWindData(allData) {
+        if (allData.length === 0) {
+            console.error("No hi ha cap dada de vent per visualitzar.");
+            return;
+        }
+        
+        const latData = allData.map(d => d.lat);
+        const lonData = allData.map(d => d.lon);
+        const u = allData.map(d => d.u);
+        const v = allData.map(d => d.v);
+
+        const { valorx, valory } = interpolateWindData(u, v, latData, lonData);
+
+        let bmax = 0;
+        for (let i = 0; i < valorx.length; i++) {
+            const speed = Math.sqrt(valorx[i] * valorx[i] + valory[i] * valory[i]);
+            if (speed > bmax) bmax = speed;
+        }
+
+        const header = { parameterUnit: "m.s-1", la1: latitudep[0], lo1: longitudep[0], dx: 0.1, dy: 0.1, nx: longitudep.length, ny: latitudep.length };
+        const windgbr = [
+            { header: { ...header, parameterCategory: 2, parameterNumber: 2 }, data: valorx },
+            { header: { ...header, parameterCategory: 2, parameterNumber: 3 }, data: valory }
+        ];
+
+        if (map.hasLayer(windArrowsLayer)) map.removeLayer(windArrowsLayer);
+        map.eachLayer(layer => { if(layer instanceof L.VelocityLayer) map.removeLayer(layer); });
+
+        L.velocityLayer({
+            displayValues: true, data: windgbr, minVelocity: 0, maxVelocity: bmax,
+            velocityScale: 0.015, particleAge: 1500, lineWidth: 2, particleMultiplier: 1/30,
+            colorScale: ["#000000"]
+        }).addTo(map);
+
+        windArrowsLayer.clearLayers();
+        for (let i = 0; i < latData.length; i++) {
+            const uu = u[i], vv = v[i];
+            if (uu === 0 && vv === 0) continue;
+            const magnitude = Math.sqrt(uu * uu + vv * vv);
+            const u_norm = uu / magnitude, v_norm = vv / magnitude;
+            const line = L.polyline([[latData[i], lonData[i]], [latData[i] + v_norm * 0.08, lonData[i] + u_norm * 0.08]], { color: 'black', weight: 1.5, opacity: 0.8 });
+            const decorator = L.polylineDecorator(line, {
+                patterns: [{
+                    offset: '100%', repeat: 0,
+                    symbol: L.Symbol.arrowHead({ pixelSize: 10, polygon: false, pathOptions: { stroke: true, weight: 1.5, color: 'black', opacity: 0.8 }})
+                }]
+            });
+            windArrowsLayer.addLayer(line);
+            windArrowsLayer.addLayer(decorator);
+        }
+        
+        if (areArrowsVisible) {
+            windArrowsLayer.addTo(map);
+        }
+    }
+    
+    function interpolateWindData(uData, vData, latEst, lonEst) {
+        const valorx = [], valory = [];
+        for (let j = 0; j < latitudep.length; j++) {
+            for (let k = 0; k < longitudep.length; k++) {
+                let sumU = 0, sumV = 0, sumW = 0;
+                for (let i = 0; i < latEst.length; i++) {
+                    const d = haversine(latitudep[j], longitudep[k], latEst[i], lonEst[i]);
+                    if (d < 50) { const w = 1 / Math.pow(d, 3); sumU += uData[i] * w; sumV += vData[i] * w; sumW += w; }
+                }
+                valorx.push(sumW ? sumU / sumW : 0);
+                valory.push(sumW ? sumV / sumW : 0);
+            }
+        }
+        return { valorx, valory };
+    }
+
+    function haversine(lat1, lon1, lat2, lon2) {
+        const R = 6371;
+        const dLat = (lat2 - lat1) * Math.PI / 180;
+        const dLon = (lon2 - lon1) * Math.PI / 180;
+        const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon / 2) ** 2;
+        return 2 * R * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    }
+
+    function toggleWindArrows() {
+        areArrowsVisible = !areArrowsVisible;
+        const btn = document.getElementById('toggle-arrows-btn');
+        if (areArrowsVisible) {
+            windArrowsLayer.addTo(map);
+            btn.textContent = 'Amaga Fletxes';
+        } else {
+            map.removeLayer(windArrowsLayer);
+            btn.textContent = 'Mostra Fletxes';
+        }
+    }
+    document.getElementById('toggle-arrows-btn').addEventListener('click', toggleWindArrows);
+
+    function run() {
+        Promise.all([
+            loadSmcData(),
+            loadAemetData()
+        ]).then(([smcResult, aemetResult]) => {
+            let allData = [];
+            let smcCount = 0;
+            let aemetCount = 0;
+            
+            const smcTime = smcResult.timestamp ? new Date(smcResult.timestamp + 'Z').getTime() : null;
+            const aemetTime = aemetResult.timestamp ? new Date(aemetResult.timestamp).getTime() : null;
+
+            console.log(`Hora de dades SMC: ${smcResult.timestamp || 'N/A'}`);
+            console.log(`Hora de dades AEMET: ${aemetResult.timestamp || 'N/A'}`);
+
+            if (smcTime && aemetTime) {
+                // CORRECCIÓ: s'ha arreglat el nom de la variable aemetTime
+                const diffMins = Math.abs(smcTime - aemetTime) / (1000 * 60);
+
+                if (diffMins < 30) {
+                    console.log(`SINCRONITZACIÓ CORRECTA: Diferència de ${Math.round(diffMins)} min. Combinant dades.`);
+                    allData = [...smcResult.data, ...aemetResult.data];
+                    smcCount = smcResult.data.length;
+                    aemetCount = aemetResult.data.length;
+                } else {
+                    console.warn(`AVÍS DE SINCRONITZACIÓ: Diferència de ${Math.round(diffMins)} min. Utilitzant només SMC.`);
+                    allData = smcResult.data;
+                    smcCount = smcResult.data.length;
+                }
+            } else if (smcTime) { 
+                console.log("Només s'han trobat dades de l'SMC.");
+                allData = smcResult.data;
+                smcCount = smcResult.data.length;
+            } else if (aemetTime) { 
+                console.log("Només s'han trobat dades d'AEMET.");
+                allData = aemetResult.data;
+                aemetCount = aemetResult.data.length;
+            }
+            
+            // NOU: Log per al recompte d'estacions que s'utilitzaran
+            console.log(`-> Interpolant dades de ${allData.length} estacions en total (${smcCount} SMC + ${aemetCount} AEMET).`);
+
+            displayCombinedWindData(allData);
+        });
+    }
+
+    run();
+    setInterval(run, 15 * 60 * 1000);
+    
+  </script>
+</body>
+</html>
